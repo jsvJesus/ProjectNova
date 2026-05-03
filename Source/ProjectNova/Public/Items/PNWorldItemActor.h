@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Interaction/PNInteractableInterface.h"
 #include "PNInventoryTypes.h"
 #include "PNWorldItemActor.generated.h"
 
@@ -14,7 +15,7 @@ class UPNInventoryComponent;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPNWorldItemChangedSignature);
 
 UCLASS()
-class PROJECTNOVA_API APNWorldItemActor : public AActor
+class PROJECTNOVA_API APNWorldItemActor : public AActor, public IPNInteractableInterface
 {
 	GENERATED_BODY()
 
@@ -89,6 +90,12 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "World Item")
 	bool CanPickup() const;
+
+public:
+	virtual FText GetInteractionDisplayName_Implementation(APawn* InteractingPawn) const override;
+	virtual FText GetInteractionActionText_Implementation(APawn* InteractingPawn) const override;
+	virtual bool CanInteract_Implementation(APawn* InteractingPawn) const override;
+	virtual bool Interact_Implementation(APawn* InteractingPawn) override;
 
 protected:
 	UPNItemInstance* DuplicateInstanceForWorld(UPNItemInstance* SourceInstance);

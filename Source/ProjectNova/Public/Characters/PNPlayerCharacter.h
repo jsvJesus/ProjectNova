@@ -7,6 +7,7 @@
 
 class UAnimInstance;
 class UCameraComponent;
+class UPNInteractionComponent;
 class USkeletalMesh;
 class USkeletalMeshComponent;
 
@@ -30,6 +31,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "First Person")
 	TObjectPtr<USkeletalMeshComponent> FirstPersonArmsMeshComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
+	TObjectPtr<UPNInteractionComponent> InteractionComponent;
+
 	UPROPERTY(ReplicatedUsing = OnRep_FirstPersonArmsMesh, EditAnywhere, BlueprintReadOnly, Category = "First Person")
 	TObjectPtr<USkeletalMesh> FirstPersonArmsMeshAsset = nullptr;
 
@@ -52,6 +56,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "First Person")
 	USkeletalMeshComponent* GetFirstPersonArmsMeshComponent() const;
 
+	UFUNCTION(BlueprintPure, Category = "Interaction")
+	UPNInteractionComponent* GetInteractionComponent() const;
+
 	UFUNCTION(BlueprintPure, Category = "First Person")
 	EPNAnimType GetFirstPersonAnimType() const;
 
@@ -66,6 +73,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "First Person")
 	void ApplyFirstPersonArmsAnimClass();
+
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	void StartInteractInput();
 
 	UFUNCTION(Server, Reliable)
 	void Server_SetFirstPersonAnimType(EPNAnimType NewAnimType);

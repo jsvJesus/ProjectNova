@@ -5,6 +5,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Interaction/PNInteractionComponent.h"
 #include "Net/UnrealNetwork.h"
 
 APNPlayerCharacter::APNPlayerCharacter()
@@ -27,8 +28,12 @@ APNPlayerCharacter::APNPlayerCharacter()
 	FirstPersonArmsMeshComponent->SetOnlyOwnerSee(true);
 	FirstPersonArmsMeshComponent->SetOwnerNoSee(false);
 	FirstPersonArmsMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	FirstPersonArmsMeshComponent->SetVisibility(true, true);
+	FirstPersonArmsMeshComponent->SetHiddenInGame(false, true);
 	FirstPersonArmsMeshComponent->CastShadow = false;
 	FirstPersonArmsMeshComponent->bCastDynamicShadow = false;
+
+	InteractionComponent = CreateDefaultSubobject<UPNInteractionComponent>(TEXT("InteractionComponent"));
 }
 
 void APNPlayerCharacter::BeginPlay()
@@ -74,6 +79,8 @@ void APNPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 
 	PlayerInputComponent->BindAction(TEXT("Crouch"), IE_Pressed, this, &APNPlayerCharacter::StartCrouchInput);
 	PlayerInputComponent->BindAction(TEXT("Crouch"), IE_Released, this, &APNPlayerCharacter::StopCrouchInput);
+
+	PlayerInputComponent->BindAction(TEXT("Interact"), IE_Pressed, this, &APNPlayerCharacter::StartInteractInput);
 }
 
 void APNPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -92,6 +99,11 @@ UCameraComponent* APNPlayerCharacter::GetFirstPersonCameraComponent() const
 USkeletalMeshComponent* APNPlayerCharacter::GetFirstPersonArmsMeshComponent() const
 {
 	return FirstPersonArmsMeshComponent;
+}
+
+UPNInteractionComponent* APNPlayerCharacter::GetInteractionComponent() const
+{
+	return InteractionComponent;
 }
 
 EPNAnimType APNPlayerCharacter::GetFirstPersonAnimType() const
@@ -129,9 +141,6 @@ void APNPlayerCharacter::ApplyFirstPersonArmsMesh()
 		return;
 	}
 
-	// ВАЖНО:
-	// Если FirstPersonArmsMeshAsset не задан в Class Defaults,
-	// НЕ затираем mesh, который был указан прямо на компоненте в Blueprint.
 	if (FirstPersonArmsMeshAsset)
 	{
 		FirstPersonArmsMeshComponent->SetSkeletalMesh(FirstPersonArmsMeshAsset);
@@ -158,7 +167,6 @@ void APNPlayerCharacter::ApplyFirstPersonArmsAnimClass()
 		return;
 	}
 
-	// Если AnimClass указан в C++ переменной — ставим его.
 	if (FirstPersonArmsAnimClass)
 	{
 		FirstPersonArmsMeshComponent->SetAnimationMode(EAnimationMode::AnimationBlueprint);
@@ -166,11 +174,25 @@ void APNPlayerCharacter::ApplyFirstPersonArmsAnimClass()
 		return;
 	}
 
-	// Если AnimClass уже указан прямо на компоненте в Blueprint — не трогаем.
 	if (FirstPersonArmsMeshComponent->GetAnimClass())
 	{
 		FirstPersonArmsMeshComponent->SetAnimationMode(EAnimationMode::AnimationBlueprint);
 	}
+}
+
+void APNPlayerCharacter::StartInteractInput()
+{
+	if (IsDead())
+	{
+		return;
+	}
+
+	if (!InteractionComponent)
+	{
+		return;
+	}
+
+	InteractionComponent->RequestInteract();
 }
 
 void APNPlayerCharacter::Server_SetFirstPersonAnimType_Implementation(EPNAnimType NewAnimType)
@@ -297,6 +319,8 @@ void APNPlayerCharacter::RefreshFirstPersonVisibility()
 	{
 		FirstPersonArmsMeshComponent->SetOnlyOwnerSee(true);
 		FirstPersonArmsMeshComponent->SetOwnerNoSee(false);
+		FirstPersonArmsMeshComponent->SetVisibility(true, true);
+		FirstPersonArmsMeshComponent->SetHiddenInGame(false, true);
 	}
 }
 

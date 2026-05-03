@@ -1,5 +1,6 @@
 #include "Items/PNWorldItemActor.h"
 
+#include "Characters/PNBaseCharacter.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Items/PNInventoryComponent.h"
@@ -20,6 +21,7 @@ APNWorldItemActor::APNWorldItemActor()
 	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	MeshComponent->SetCollisionObjectType(ECC_WorldDynamic);
 	MeshComponent->SetCollisionResponseToAllChannels(ECR_Block);
+	MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 	MeshComponent->SetSimulatePhysics(false);
 
 	PickupSphere = CreateDefaultSubobject<USphereComponent>(TEXT("PickupSphere"));
@@ -100,6 +102,11 @@ void APNWorldItemActor::InitializeFromInstance(UPNItemInstance* InItemInstance)
 
 bool APNWorldItemActor::PickupToInventory(UPNInventoryComponent* TargetInventory)
 {
+	if (!HasAuthority())
+	{
+		return false;
+	}
+
 	if (!TargetInventory || !CanPickup())
 	{
 		return false;
@@ -163,6 +170,11 @@ void APNWorldItemActor::RefreshVisual()
 
 void APNWorldItemActor::SetQuantity(int32 NewQuantity)
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	if (!ItemInstance)
 	{
 		return;
@@ -225,6 +237,55 @@ bool APNWorldItemActor::IsValidWorldItem() const
 bool APNWorldItemActor::CanPickup() const
 {
 	return IsValidWorldItem();
+}
+
+FText APNWorldItemActor::GetInteractionDisplayName_Implementation(APawn* InteractingPawn) const
+{
+	UPNItemDataAsset* Data = GetItemData();
+
+	if (!Data)
+	{
+		return FText::FromString(TEXT("Unknown Item"));
+	}
+
+	return Data->GetItemName();
+}
+
+FText APNWorldItemActor::GetInteractionActionText_Implementation(APawn* InteractingPawn) const
+{
+	return FText::FromString(TEXT("Pick Up"));
+}
+
+bool APNWorldItemActor::CanInteract_Implementation(APawn* InteractingPawn) const
+{
+	if (!InteractingPawn)
+	{
+		return false;
+	}
+
+	return CanPickup();
+}
+
+bool APNWorldItemActor::Interact_Implementation(APawn* InteractingPawn)
+{
+	if (!HasAuthority())
+	{
+		return false;
+	}
+
+	APNBaseCharacter* Character = Cast<APNBaseCharacter>(InteractingPawn);
+	if (!Character)
+	{
+		return false;
+	}
+
+	UPNInventoryComponent* TargetInventory = Character->GetInventoryComponent();
+	if (!TargetInventory)
+	{
+		return false;
+	}
+
+	return PickupToInventory(TargetInventory);
 }
 
 UPNItemInstance* APNWorldItemActor::DuplicateInstanceForWorld(UPNItemInstance* SourceInstance)
