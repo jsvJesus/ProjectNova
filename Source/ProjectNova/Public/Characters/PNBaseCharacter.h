@@ -5,6 +5,8 @@
 #include "PNBaseCharacter.generated.h"
 
 class UPNInventoryComponent;
+class USkeletalMesh;
+class USkeletalMeshComponent;
 
 UCLASS()
 class PROJECTNOVA_API APNBaseCharacter : public ACharacter
@@ -31,6 +33,27 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UPNInventoryComponent> InventoryComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Modular Character")
+	TObjectPtr<USkeletalMeshComponent> ThirdPersonHeadMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Modular Character")
+	TObjectPtr<USkeletalMeshComponent> ThirdPersonLegsMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Modular Character")
+	TObjectPtr<USkeletalMeshComponent> ThirdPersonHandsMeshComponent;
+
+	UPROPERTY(ReplicatedUsing = OnRep_ModularMeshes, EditAnywhere, BlueprintReadOnly, Category = "Modular Character")
+	TObjectPtr<USkeletalMesh> ThirdPersonMasterBodyMeshAsset = nullptr;
+
+	UPROPERTY(ReplicatedUsing = OnRep_ModularMeshes, EditAnywhere, BlueprintReadOnly, Category = "Modular Character")
+	TObjectPtr<USkeletalMesh> ThirdPersonHeadMeshAsset = nullptr;
+
+	UPROPERTY(ReplicatedUsing = OnRep_ModularMeshes, EditAnywhere, BlueprintReadOnly, Category = "Modular Character")
+	TObjectPtr<USkeletalMesh> ThirdPersonLegsMeshAsset = nullptr;
+
+	UPROPERTY(ReplicatedUsing = OnRep_ModularMeshes, EditAnywhere, BlueprintReadOnly, Category = "Modular Character")
+	TObjectPtr<USkeletalMesh> ThirdPersonHandsMeshAsset = nullptr;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement", meta = (ClampMin = "0.0"))
 	float WalkSpeed = 350.0f;
 
@@ -49,6 +72,26 @@ protected:
 public:
 	UFUNCTION(BlueprintPure, Category = "Inventory")
 	UPNInventoryComponent* GetInventoryComponent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Modular Character")
+	USkeletalMeshComponent* GetThirdPersonHeadMeshComponent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Modular Character")
+	USkeletalMeshComponent* GetThirdPersonLegsMeshComponent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Modular Character")
+	USkeletalMeshComponent* GetThirdPersonHandsMeshComponent() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Modular Character")
+	void SetModularCharacterMeshes(
+		USkeletalMesh* NewMasterBodyMesh,
+		USkeletalMesh* NewHeadMesh,
+		USkeletalMesh* NewLegsMesh,
+		USkeletalMesh* NewHandsMesh
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "Modular Character")
+	void ApplyModularCharacterMeshes();
 
 	UFUNCTION(BlueprintPure, Category = "Movement")
 	bool IsSprinting() const;
@@ -74,6 +117,10 @@ public:
 protected:
 	void SetSprintingInternal(bool bNewSprinting);
 	void ApplyMovementSpeed();
+	void SetupThirdPersonMeshVisibility();
+
+	UFUNCTION()
+	void OnRep_ModularMeshes();
 
 	UFUNCTION()
 	void OnRep_IsSprinting();
