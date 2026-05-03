@@ -1,0 +1,13 @@
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+Build/
+Content/
+
+.vs/
+.idea/
+.vscode/
+
+ProjectNova_FileIndex.txt
+ProjectNova_Context.txt
