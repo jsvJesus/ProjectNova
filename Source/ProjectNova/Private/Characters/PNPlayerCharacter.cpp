@@ -36,6 +36,18 @@ void APNPlayerCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	RefreshFirstPersonVisibility();
+
+	if (FirstPersonArmsMeshComponent)
+	{
+		FirstPersonArmsMeshComponent->SetVisibility(true, true);
+		FirstPersonArmsMeshComponent->SetHiddenInGame(false, true);
+		FirstPersonArmsMeshComponent->SetOnlyOwnerSee(true);
+		FirstPersonArmsMeshComponent->SetOwnerNoSee(false);
+		FirstPersonArmsMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		FirstPersonArmsMeshComponent->CastShadow = false;
+		FirstPersonArmsMeshComponent->bCastDynamicShadow = false;
+	}
+
 	ApplyFirstPersonArmsMesh();
 	ApplyFirstPersonArmsAnimClass();
 }
@@ -117,10 +129,22 @@ void APNPlayerCharacter::ApplyFirstPersonArmsMesh()
 		return;
 	}
 
-	FirstPersonArmsMeshComponent->SetSkeletalMesh(FirstPersonArmsMeshAsset);
+	// ВАЖНО:
+	// Если FirstPersonArmsMeshAsset не задан в Class Defaults,
+	// НЕ затираем mesh, который был указан прямо на компоненте в Blueprint.
+	if (FirstPersonArmsMeshAsset)
+	{
+		FirstPersonArmsMeshComponent->SetSkeletalMesh(FirstPersonArmsMeshAsset);
+	}
+
 	FirstPersonArmsMeshComponent->SetOnlyOwnerSee(true);
 	FirstPersonArmsMeshComponent->SetOwnerNoSee(false);
+	FirstPersonArmsMeshComponent->SetVisibility(true, true);
+	FirstPersonArmsMeshComponent->SetHiddenInGame(false, true);
 	FirstPersonArmsMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	FirstPersonArmsMeshComponent->CastShadow = false;
+	FirstPersonArmsMeshComponent->bCastDynamicShadow = false;
+
 	FirstPersonArmsMeshComponent->SetRelativeLocation(FirstPersonArmsRelativeLocation);
 	FirstPersonArmsMeshComponent->SetRelativeRotation(FirstPersonArmsRelativeRotation);
 
@@ -134,13 +158,19 @@ void APNPlayerCharacter::ApplyFirstPersonArmsAnimClass()
 		return;
 	}
 
-	if (!FirstPersonArmsAnimClass)
+	// Если AnimClass указан в C++ переменной — ставим его.
+	if (FirstPersonArmsAnimClass)
 	{
+		FirstPersonArmsMeshComponent->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+		FirstPersonArmsMeshComponent->SetAnimInstanceClass(FirstPersonArmsAnimClass);
 		return;
 	}
 
-	FirstPersonArmsMeshComponent->SetAnimationMode(EAnimationMode::AnimationBlueprint);
-	FirstPersonArmsMeshComponent->SetAnimInstanceClass(FirstPersonArmsAnimClass);
+	// Если AnimClass уже указан прямо на компоненте в Blueprint — не трогаем.
+	if (FirstPersonArmsMeshComponent->GetAnimClass())
+	{
+		FirstPersonArmsMeshComponent->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+	}
 }
 
 void APNPlayerCharacter::Server_SetFirstPersonAnimType_Implementation(EPNAnimType NewAnimType)
