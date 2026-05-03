@@ -2,8 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "PNBaseCharacter.h"
+#include "Items/PNItemTypes.h"
 #include "PNPlayerCharacter.generated.h"
 
+class UAnimInstance;
 class UCameraComponent;
 class USkeletalMesh;
 class USkeletalMeshComponent;
@@ -32,6 +34,12 @@ protected:
 	TObjectPtr<USkeletalMesh> FirstPersonArmsMeshAsset = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "First Person")
+	TSubclassOf<UAnimInstance> FirstPersonArmsAnimClass;
+
+	UPROPERTY(ReplicatedUsing = OnRep_FirstPersonAnimType, EditAnywhere, BlueprintReadOnly, Category = "First Person")
+	EPNAnimType FirstPersonAnimType = EPNAnimType::Unarmed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "First Person")
 	FVector FirstPersonArmsRelativeLocation = FVector(0.0f, 0.0f, -150.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "First Person")
@@ -44,11 +52,23 @@ public:
 	UFUNCTION(BlueprintPure, Category = "First Person")
 	USkeletalMeshComponent* GetFirstPersonArmsMeshComponent() const;
 
+	UFUNCTION(BlueprintPure, Category = "First Person")
+	EPNAnimType GetFirstPersonAnimType() const;
+
 	UFUNCTION(BlueprintCallable, Category = "First Person")
 	void SetFirstPersonArmsMesh(USkeletalMesh* NewArmsMesh);
 
 	UFUNCTION(BlueprintCallable, Category = "First Person")
+	void SetFirstPersonAnimType(EPNAnimType NewAnimType);
+
+	UFUNCTION(BlueprintCallable, Category = "First Person")
 	void ApplyFirstPersonArmsMesh();
+
+	UFUNCTION(BlueprintCallable, Category = "First Person")
+	void ApplyFirstPersonArmsAnimClass();
+
+	UFUNCTION(Server, Reliable)
+	void Server_SetFirstPersonAnimType(EPNAnimType NewAnimType);
 
 protected:
 	void MoveForward(float Value);
@@ -66,4 +86,7 @@ protected:
 
 	UFUNCTION()
 	void OnRep_FirstPersonArmsMesh();
+
+	UFUNCTION()
+	void OnRep_FirstPersonAnimType();
 };

@@ -1,5 +1,6 @@
 #include "Characters/PNPlayerCharacter.h"
 
+#include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -36,6 +37,7 @@ void APNPlayerCharacter::BeginPlay()
 
 	RefreshFirstPersonVisibility();
 	ApplyFirstPersonArmsMesh();
+	ApplyFirstPersonArmsAnimClass();
 }
 
 void APNPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -67,6 +69,7 @@ void APNPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(APNPlayerCharacter, FirstPersonArmsMeshAsset);
+	DOREPLIFETIME(APNPlayerCharacter, FirstPersonAnimType);
 }
 
 UCameraComponent* APNPlayerCharacter::GetFirstPersonCameraComponent() const
@@ -79,6 +82,11 @@ USkeletalMeshComponent* APNPlayerCharacter::GetFirstPersonArmsMeshComponent() co
 	return FirstPersonArmsMeshComponent;
 }
 
+EPNAnimType APNPlayerCharacter::GetFirstPersonAnimType() const
+{
+	return FirstPersonAnimType;
+}
+
 void APNPlayerCharacter::SetFirstPersonArmsMesh(USkeletalMesh* NewArmsMesh)
 {
 	if (!HasAuthority())
@@ -88,6 +96,18 @@ void APNPlayerCharacter::SetFirstPersonArmsMesh(USkeletalMesh* NewArmsMesh)
 
 	FirstPersonArmsMeshAsset = NewArmsMesh;
 	ApplyFirstPersonArmsMesh();
+}
+
+void APNPlayerCharacter::SetFirstPersonAnimType(EPNAnimType NewAnimType)
+{
+	if (HasAuthority())
+	{
+		FirstPersonAnimType = NewAnimType;
+		OnRep_FirstPersonAnimType();
+		return;
+	}
+
+	Server_SetFirstPersonAnimType(NewAnimType);
 }
 
 void APNPlayerCharacter::ApplyFirstPersonArmsMesh()
@@ -103,6 +123,29 @@ void APNPlayerCharacter::ApplyFirstPersonArmsMesh()
 	FirstPersonArmsMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	FirstPersonArmsMeshComponent->SetRelativeLocation(FirstPersonArmsRelativeLocation);
 	FirstPersonArmsMeshComponent->SetRelativeRotation(FirstPersonArmsRelativeRotation);
+
+	ApplyFirstPersonArmsAnimClass();
+}
+
+void APNPlayerCharacter::ApplyFirstPersonArmsAnimClass()
+{
+	if (!FirstPersonArmsMeshComponent)
+	{
+		return;
+	}
+
+	if (!FirstPersonArmsAnimClass)
+	{
+		return;
+	}
+
+	FirstPersonArmsMeshComponent->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+	FirstPersonArmsMeshComponent->SetAnimInstanceClass(FirstPersonArmsAnimClass);
+}
+
+void APNPlayerCharacter::Server_SetFirstPersonAnimType_Implementation(EPNAnimType NewAnimType)
+{
+	SetFirstPersonAnimType(NewAnimType);
 }
 
 void APNPlayerCharacter::MoveForward(float Value)
@@ -230,4 +273,8 @@ void APNPlayerCharacter::RefreshFirstPersonVisibility()
 void APNPlayerCharacter::OnRep_FirstPersonArmsMesh()
 {
 	ApplyFirstPersonArmsMesh();
+}
+
+void APNPlayerCharacter::OnRep_FirstPersonAnimType()
+{
 }
