@@ -1,10 +1,11 @@
 #include "Characters/PNBaseCharacter.h"
 
 #include "Components/SkeletalMeshComponent.h"
+#include "Equipment/PNEquipmentComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Items/PNInventoryComponent.h"
-#include "Equipment/PNEquipmentComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "Stats/PNCharacterStatsComponent.h"
 
 APNBaseCharacter::APNBaseCharacter()
 {
@@ -23,6 +24,12 @@ APNBaseCharacter::APNBaseCharacter()
 	if (EquipmentComponent)
 	{
 		EquipmentComponent->SetIsReplicated(true);
+	}
+
+	CharacterStatsComponent = CreateDefaultSubobject<UPNCharacterStatsComponent>(TEXT("CharacterStatsComponent"));
+	if (CharacterStatsComponent)
+	{
+		CharacterStatsComponent->SetIsReplicated(true);
 	}
 
 	GetMesh()->SetIsReplicated(true);
@@ -106,10 +113,9 @@ float APNBaseCharacter::TakeDamage(
 		return AppliedDamage;
 	}
 
-	// Временно. Нормальное здоровье будет позже в UPNHealthComponent.
-	if (AppliedDamage >= 99999.0f)
+	if (CharacterStatsComponent)
 	{
-		Die(EventInstigator);
+		return CharacterStatsComponent->ApplyDamage(AppliedDamage, EventInstigator, DamageCauser);
 	}
 
 	return AppliedDamage;
@@ -123,6 +129,11 @@ UPNInventoryComponent* APNBaseCharacter::GetInventoryComponent() const
 UPNEquipmentComponent* APNBaseCharacter::GetEquipmentComponent() const
 {
 	return EquipmentComponent;
+}
+
+UPNCharacterStatsComponent* APNBaseCharacter::GetCharacterStatsComponent() const
+{
+	return CharacterStatsComponent;
 }
 
 USkeletalMeshComponent* APNBaseCharacter::GetThirdPersonHeadMeshComponent() const
@@ -205,6 +216,11 @@ void APNBaseCharacter::StartSprint()
 		return;
 	}
 
+	if (CharacterStatsComponent && !CharacterStatsComponent->CanSprint())
+	{
+		return;
+	}
+
 	if (HasAuthority())
 	{
 		SetSprintingInternal(true);
@@ -240,6 +256,11 @@ void APNBaseCharacter::Die(AController* KillerController)
 	bIsDead = true;
 	bIsSprinting = false;
 
+	if (CharacterStatsComponent)
+	{
+		CharacterStatsComponent->SetSprintDrainEnabled(false);
+	}
+
 	ApplyMovementSpeed();
 
 	if (GetCharacterMovement())
@@ -260,6 +281,12 @@ void APNBaseCharacter::Revive()
 	bIsDead = false;
 	bIsSprinting = false;
 
+	if (CharacterStatsComponent)
+	{
+		CharacterStatsComponent->ResetForRespawn();
+		CharacterStatsComponent->SetSprintDrainEnabled(false);
+	}
+
 	if (GetCharacterMovement())
 	{
 		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
@@ -272,6 +299,11 @@ void APNBaseCharacter::Revive()
 
 void APNBaseCharacter::Server_SetSprinting_Implementation(bool bNewSprinting)
 {
+	if (bNewSprinting && CharacterStatsComponent && !CharacterStatsComponent->CanSprint())
+	{
+		bNewSprinting = false;
+	}
+
 	SetSprintingInternal(bNewSprinting);
 }
 
@@ -282,12 +314,28 @@ void APNBaseCharacter::SetSprintingInternal(bool bNewSprinting)
 		bNewSprinting = false;
 	}
 
+	if (bNewSprinting && CharacterStatsComponent && !CharacterStatsComponent->CanSprint())
+	{
+		bNewSprinting = false;
+	}
+
 	if (bIsSprinting == bNewSprinting)
 	{
+		if (CharacterStatsComponent)
+		{
+			CharacterStatsComponent->SetSprintDrainEnabled(bIsSprinting);
+		}
+
 		return;
 	}
 
 	bIsSprinting = bNewSprinting;
+
+	if (CharacterStatsComponent)
+	{
+		CharacterStatsComponent->SetSprintDrainEnabled(bIsSprinting);
+	}
+
 	ApplyMovementSpeed();
 
 	OnRep_IsSprinting();

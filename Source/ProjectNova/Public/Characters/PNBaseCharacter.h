@@ -6,6 +6,7 @@
 
 class UPNInventoryComponent;
 class UPNEquipmentComponent;
+class UPNCharacterStatsComponent;
 class USkeletalMesh;
 class USkeletalMeshComponent;
 
@@ -36,6 +37,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UPNEquipmentComponent> EquipmentComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UPNCharacterStatsComponent> CharacterStatsComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Modular Character")
 	TObjectPtr<USkeletalMeshComponent> ThirdPersonHeadMeshComponent;
@@ -79,6 +83,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Equipment")
 	UPNEquipmentComponent* GetEquipmentComponent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Character Stats")
+	UPNCharacterStatsComponent* GetCharacterStatsComponent() const;
 
 	UFUNCTION(BlueprintPure, Category = "Modular Character")
 	USkeletalMeshComponent* GetThirdPersonHeadMeshComponent() const;
