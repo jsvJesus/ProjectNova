@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "PNItemTypes.generated.h"
 
-UENUM (BlueprintType)
+UENUM(BlueprintType)
 enum class EPNItemType : uint8
 {
 	None            UMETA(DisplayName = "None"),
@@ -11,7 +11,6 @@ enum class EPNItemType : uint8
 	IT_Weapon       UMETA(DisplayName = "Weapon"),
 	IT_Armor        UMETA(DisplayName = "Armor"),
 	IT_HArmor       UMETA(DisplayName = "Helmet Armor"),
-	IT_Gloves       UMETA(DisplayName = "Gloves"),
 	IT_Backpack     UMETA(DisplayName = "Backpack"),
 	IT_Container    UMETA(DisplayName = "Container"),
 	IT_Consumables  UMETA(DisplayName = "Consumables"),
@@ -19,7 +18,9 @@ enum class EPNItemType : uint8
 	IT_Armor_ATTM   UMETA(DisplayName = "Armor Attachment"),
 	IT_Items        UMETA(DisplayName = "Items"),
 	IT_Characters   UMETA(DisplayName = "Characters"),
-	IT_Builds       UMETA(DisplayName = "Builds")
+	IT_Builds       UMETA(DisplayName = "Builds"),
+
+	IT_Gloves       UMETA(DisplayName = "Gloves")
 };
 
 UENUM(BlueprintType)
@@ -45,7 +46,6 @@ enum class EPNItemCategory : uint8
 	Armor           UMETA(DisplayName = "Armor"),
 	Helmet          UMETA(DisplayName = "Helmet"),
 	Backpack        UMETA(DisplayName = "Backpack"),
-	Gloves          UMETA(DisplayName = "Gloves"),
 
 	// Container
 	Container       UMETA(DisplayName = "Container"),
@@ -83,7 +83,10 @@ enum class EPNItemCategory : uint8
 	Legs            UMETA(DisplayName = "Legs"),
 
 	// Builds
-	Parts           UMETA(DisplayName = "Build Parts")
+	Parts           UMETA(DisplayName = "Build Parts"),
+
+	// Equipment
+	Gloves          UMETA(DisplayName = "Gloves")
 };
 
 UENUM(BlueprintType)
