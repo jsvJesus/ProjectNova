@@ -6,6 +6,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Interaction/PNInteractionComponent.h"
+#include "Items/PNQuickSlotComponent.h"
 #include "Net/UnrealNetwork.h"
 
 APNPlayerCharacter::APNPlayerCharacter()
@@ -81,6 +82,13 @@ void APNPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	PlayerInputComponent->BindAction(TEXT("Crouch"), IE_Released, this, &APNPlayerCharacter::StopCrouchInput);
 
 	PlayerInputComponent->BindAction(TEXT("Interact"), IE_Pressed, this, &APNPlayerCharacter::StartInteractInput);
+
+	PlayerInputComponent->BindAction(TEXT("QuickSlot_5"), IE_Pressed, this, &APNPlayerCharacter::QuickSlotInput_5);
+	PlayerInputComponent->BindAction(TEXT("QuickSlot_6"), IE_Pressed, this, &APNPlayerCharacter::QuickSlotInput_6);
+	PlayerInputComponent->BindAction(TEXT("QuickSlot_7"), IE_Pressed, this, &APNPlayerCharacter::QuickSlotInput_7);
+	PlayerInputComponent->BindAction(TEXT("QuickSlot_8"), IE_Pressed, this, &APNPlayerCharacter::QuickSlotInput_8);
+	PlayerInputComponent->BindAction(TEXT("QuickSlot_9"), IE_Pressed, this, &APNPlayerCharacter::QuickSlotInput_9);
+	PlayerInputComponent->BindAction(TEXT("QuickSlot_0"), IE_Pressed, this, &APNPlayerCharacter::QuickSlotInput_0);
 }
 
 void APNPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -193,6 +201,62 @@ void APNPlayerCharacter::StartInteractInput()
 	}
 
 	InteractionComponent->RequestInteract();
+}
+
+void APNPlayerCharacter::QuickSlotInput_5()
+{
+	HandleQuickSlotInput(0);
+}
+
+void APNPlayerCharacter::QuickSlotInput_6()
+{
+	HandleQuickSlotInput(1);
+}
+
+void APNPlayerCharacter::QuickSlotInput_7()
+{
+	HandleQuickSlotInput(2);
+}
+
+void APNPlayerCharacter::QuickSlotInput_8()
+{
+	HandleQuickSlotInput(3);
+}
+
+void APNPlayerCharacter::QuickSlotInput_9()
+{
+	HandleQuickSlotInput(4);
+}
+
+void APNPlayerCharacter::QuickSlotInput_0()
+{
+	HandleQuickSlotInput(5);
+}
+
+void APNPlayerCharacter::HandleQuickSlotInput(int32 SlotIndex)
+{
+	if (IsDead())
+	{
+		return;
+	}
+
+	UPNQuickSlotComponent* QuickSlots = GetQuickSlotComponent();
+	if (!QuickSlots)
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	const float CurrentTime = World ? World->GetTimeSeconds() : 0.0f;
+
+	const bool bDoubleClick =
+		LastQuickSlotPressIndex == SlotIndex &&
+		CurrentTime - LastQuickSlotPressTime <= QuickSlotDoubleClickTime;
+
+	LastQuickSlotPressIndex = SlotIndex;
+	LastQuickSlotPressTime = CurrentTime;
+
+	QuickSlots->RequestActivateQuickSlot(SlotIndex, bDoubleClick);
 }
 
 void APNPlayerCharacter::Server_SetFirstPersonAnimType_Implementation(EPNAnimType NewAnimType)

@@ -49,6 +49,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "First Person")
 	FRotator FirstPersonArmsRelativeRotation = FRotator(0.0f, 0.0f, 0.0f);
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quick Slots", meta = (ClampMin = "0.05"))
+	float QuickSlotDoubleClickTime = 0.25f;
+
+	float LastQuickSlotPressTime = -1000.0f;
+
+	int32 LastQuickSlotPressIndex = INDEX_NONE;
+
 public:
 	UFUNCTION(BlueprintPure, Category = "First Person")
 	UCameraComponent* GetFirstPersonCameraComponent() const;
@@ -99,4 +106,13 @@ protected:
 
 	UFUNCTION()
 	void OnRep_FirstPersonAnimType();
+
+	void QuickSlotInput_5();
+	void QuickSlotInput_6();
+	void QuickSlotInput_7();
+	void QuickSlotInput_8();
+	void QuickSlotInput_9();
+	void QuickSlotInput_0();
+
+	void HandleQuickSlotInput(int32 SlotIndex);
 };

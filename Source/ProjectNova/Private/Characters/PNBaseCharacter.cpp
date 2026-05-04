@@ -4,6 +4,7 @@
 #include "Equipment/PNEquipmentComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Items/PNInventoryComponent.h"
+#include "Items/PNQuickSlotComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Stats/PNCharacterStatsComponent.h"
 
@@ -30,6 +31,12 @@ APNBaseCharacter::APNBaseCharacter()
 	if (CharacterStatsComponent)
 	{
 		CharacterStatsComponent->SetIsReplicated(true);
+	}
+
+	QuickSlotComponent = CreateDefaultSubobject<UPNQuickSlotComponent>(TEXT("QuickSlotComponent"));
+	if (QuickSlotComponent)
+	{
+		QuickSlotComponent->SetIsReplicated(true);
 	}
 
 	GetMesh()->SetIsReplicated(true);
@@ -134,6 +141,11 @@ UPNEquipmentComponent* APNBaseCharacter::GetEquipmentComponent() const
 UPNCharacterStatsComponent* APNBaseCharacter::GetCharacterStatsComponent() const
 {
 	return CharacterStatsComponent;
+}
+
+UPNQuickSlotComponent* APNBaseCharacter::GetQuickSlotComponent() const
+{
+	return QuickSlotComponent;
 }
 
 USkeletalMeshComponent* APNBaseCharacter::GetThirdPersonHeadMeshComponent() const
