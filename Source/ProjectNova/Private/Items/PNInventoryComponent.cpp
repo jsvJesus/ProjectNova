@@ -1,10 +1,14 @@
 #include "Items/PNInventoryComponent.h"
 #include "Items/PNItemDataAsset.h"
 #include "Items/PNItemInstance.h"
+#include "Net/UnrealNetwork.h"
+#include "Engine/Engine.h"
 
 UPNInventoryComponent::UPNInventoryComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+
+	SetIsReplicatedByDefault(true);
 
 	Settings.InventoryType = EPNInventoryType::Inventory;
 	Settings.GridSize.Columns = 5;
@@ -23,16 +27,32 @@ void UPNInventoryComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	ClampSettings();
 	RebuildSlots();
+
+	if (HasInventoryAuthority())
+	{
+		SyncReplicatedItemsFromRuntime();
+	}
+}
+
+void UPNInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(UPNInventoryComponent, Settings);
+	DOREPLIFETIME(UPNInventoryComponent, ReplicatedItems);
 }
 
 void UPNInventoryComponent::InitializeInventory(const FPNInventorySettings& InSettings)
 {
-	Settings = InSettings;
+	if (!HasInventoryAuthority())
+	{
+		return;
+	}
 
-	Settings.GridSize.Columns = FMath::Max(1, Settings.GridSize.Columns);
-	Settings.GridSize.Rows = FMath::Max(1, Settings.GridSize.Rows);
-	Settings.MaxWeight = FMath::Max(0.0f, Settings.MaxWeight);
+	Settings = InSettings;
+	ClampSettings();
 
 	Items.Reset();
 	RebuildSlots();
@@ -88,6 +108,12 @@ FPNInventoryAddItemResult UPNInventoryComponent::AddItem(UPNItemInstance* ItemIn
 	FPNInventoryAddItemResult Result;
 	Result.Result = EPNInventoryOperationResult::UnknownError;
 
+	if (!HasInventoryAuthority())
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidInventory;
+		return Result;
+	}
+
 	if (!Settings.bCanReceiveItems)
 	{
 		Result.Result = EPNInventoryOperationResult::InventoryTypeNotAllowed;
@@ -131,7 +157,7 @@ FPNInventoryAddItemResult UPNInventoryComponent::AddItem(UPNItemInstance* ItemIn
 		if (!FindFreePositionForItem(ItemInstance, bAutoRotate, FreePosition, bRotated))
 		{
 			Result.bSuccess = Result.AddedQuantity > 0;
-			Result.Result = Result.bSuccess ? EPNInventoryOperationResult::NoSpace : EPNInventoryOperationResult::NoSpace;
+			Result.Result = EPNInventoryOperationResult::NoSpace;
 			Result.RemainingQuantity = RemainingQuantity;
 
 			if (Result.bSuccess)
@@ -175,6 +201,12 @@ FPNInventoryAddItemResult UPNInventoryComponent::AddItemAtPosition(UPNItemInstan
 	FPNInventoryAddItemResult Result;
 	Result.Position = Position;
 	Result.Result = EPNInventoryOperationResult::UnknownError;
+
+	if (!HasInventoryAuthority())
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidInventory;
+		return Result;
+	}
 
 	if (!Settings.bCanReceiveItems)
 	{
@@ -285,6 +317,12 @@ FPNInventoryMoveItemResult UPNInventoryComponent::MoveItem(UPNItemInstance* Item
 	Result.NewPosition = NewPosition;
 	Result.Result = EPNInventoryOperationResult::UnknownError;
 
+	if (!HasInventoryAuthority())
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidInventory;
+		return Result;
+	}
+
 	if (!ItemInstance || !ItemInstance->IsValidItem())
 	{
 		Result.Result = EPNInventoryOperationResult::InvalidItem;
@@ -337,13 +375,21 @@ FPNInventoryMoveItemResult UPNInventoryComponent::MoveItem(UPNItemInstance* Item
 
 FPNInventoryMoveItemResult UPNInventoryComponent::MoveItemFromPosition(FPNInventoryGridPosition OldPosition, FPNInventoryGridPosition NewPosition, bool bRotated)
 {
+	FPNInventoryMoveItemResult Result;
+	Result.OldPosition = OldPosition;
+	Result.NewPosition = NewPosition;
+	Result.Result = EPNInventoryOperationResult::UnknownError;
+
+	if (!HasInventoryAuthority())
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidInventory;
+		return Result;
+	}
+
 	UPNItemInstance* ItemInstance = GetItemAtPosition(OldPosition);
 
 	if (!ItemInstance)
 	{
-		FPNInventoryMoveItemResult Result;
-		Result.OldPosition = OldPosition;
-		Result.NewPosition = NewPosition;
 		Result.Result = EPNInventoryOperationResult::SlotEmpty;
 		return Result;
 	}
@@ -351,10 +397,38 @@ FPNInventoryMoveItemResult UPNInventoryComponent::MoveItemFromPosition(FPNInvent
 	return MoveItem(ItemInstance, NewPosition, bRotated);
 }
 
+void UPNInventoryComponent::RequestMoveItemFromPosition(FPNInventoryGridPosition OldPosition, FPNInventoryGridPosition NewPosition, bool bRotated)
+{
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor)
+	{
+		return;
+	}
+
+	if (OwnerActor->HasAuthority())
+	{
+		MoveItemFromPosition(OldPosition, NewPosition, bRotated);
+		return;
+	}
+
+	Server_MoveItemFromPosition(OldPosition, NewPosition, bRotated);
+}
+
+void UPNInventoryComponent::Server_MoveItemFromPosition_Implementation(FPNInventoryGridPosition OldPosition, FPNInventoryGridPosition NewPosition, bool bRotated)
+{
+	MoveItemFromPosition(OldPosition, NewPosition, bRotated);
+}
+
 FPNInventoryRemoveItemResult UPNInventoryComponent::RemoveItemInstance(UPNItemInstance* ItemInstance, int32 QuantityToRemove)
 {
 	FPNInventoryRemoveItemResult Result;
 	Result.Result = EPNInventoryOperationResult::UnknownError;
+
+	if (!HasInventoryAuthority())
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidInventory;
+		return Result;
+	}
 
 	if (!Settings.bCanRemoveItems)
 	{
@@ -412,11 +486,19 @@ FPNInventoryRemoveItemResult UPNInventoryComponent::RemoveItemInstance(UPNItemIn
 
 FPNInventoryRemoveItemResult UPNInventoryComponent::RemoveItemAtPosition(FPNInventoryGridPosition Position, int32 QuantityToRemove)
 {
+	FPNInventoryRemoveItemResult Result;
+	Result.Result = EPNInventoryOperationResult::UnknownError;
+
+	if (!HasInventoryAuthority())
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidInventory;
+		return Result;
+	}
+
 	UPNItemInstance* ItemInstance = GetItemAtPosition(Position);
 
 	if (!ItemInstance)
 	{
-		FPNInventoryRemoveItemResult Result;
 		Result.Result = EPNInventoryOperationResult::SlotEmpty;
 		return Result;
 	}
@@ -432,6 +514,101 @@ const TArray<FPNInventorySlot>& UPNInventoryComponent::GetSlots() const
 const TArray<FPNInventoryItemEntry>& UPNInventoryComponent::GetItems() const
 {
 	return Items;
+}
+
+const TArray<FPNRepInventoryItemEntry>& UPNInventoryComponent::GetReplicatedItems() const
+{
+	return ReplicatedItems;
+}
+
+int32 UPNInventoryComponent::GetInventoryItemCount() const
+{
+	return Items.Num();
+}
+
+FString UPNInventoryComponent::GetInventoryDebugString() const
+{
+	const AActor* OwnerActor = GetOwner();
+
+	const FString NetSide = OwnerActor && OwnerActor->HasAuthority()
+		? TEXT("SERVER")
+		: TEXT("CLIENT");
+
+	const FString OwnerName = OwnerActor
+		? OwnerActor->GetName()
+		: TEXT("NoOwner");
+
+	FString Result = FString::Printf(
+		TEXT("[%s] InventoryComponent: %s\nItems: %d | Weight: %.2f / %.2f"),
+		*NetSide,
+		*OwnerName,
+		Items.Num(),
+		GetCurrentWeight(),
+		GetMaxWeight()
+	);
+
+	for (int32 Index = 0; Index < Items.Num(); ++Index)
+	{
+		const FPNInventoryItemEntry& Entry = Items[Index];
+		const UPNItemInstance* ItemInstance = Entry.ItemInstance;
+
+		if (!ItemInstance || !ItemInstance->GetItemData())
+		{
+			Result += FString::Printf(
+				TEXT("\n[%d] Invalid Item Pos(%d,%d)"),
+				Index,
+				Entry.Position.X,
+				Entry.Position.Y
+			);
+
+			continue;
+		}
+
+		const UPNItemDataAsset* ItemData = ItemInstance->GetItemData();
+
+		const FString ItemName = ItemData->GetItemName().IsEmpty()
+			? ItemData->GetItemId().ToString()
+			: ItemData->GetItemName().ToString();
+
+		Result += FString::Printf(
+			TEXT("\n[%d] %s x%d Pos(%d,%d) Size(%dx%d) Rot:%s Dur:%.1f Bat:%.1f Exp:%.1f Ammo:%d"),
+			Index,
+			*ItemName,
+			ItemInstance->Quantity,
+			Entry.Position.X,
+			Entry.Position.Y,
+			Entry.Size.GetFinalWidth(),
+			Entry.Size.GetFinalHeight(),
+			Entry.bRotated ? TEXT("Yes") : TEXT("No"),
+			ItemInstance->CurrentDurability,
+			ItemInstance->CurrentBatteryCharge,
+			ItemInstance->RemainingShelfLifeSeconds,
+			ItemInstance->AmmoInMagazine
+		);
+	}
+
+	return Result;
+}
+
+void UPNInventoryComponent::PrintInventoryDebug() const
+{
+	const FString DebugText = GetInventoryDebugString();
+
+	UE_LOG(LogTemp, Warning, TEXT("%s"), *DebugText);
+
+	if (GEngine)
+	{
+		const int32 DebugKey = GetOwner()
+			? static_cast<int32>(GetOwner()->GetUniqueID())
+			: INDEX_NONE;
+
+		GEngine->AddOnScreenDebugMessage(
+			DebugKey,
+			5.0f,
+			FColor::Green,
+			DebugText
+		);
+	}
 }
 
 int32 UPNInventoryComponent::GetColumns() const
@@ -618,6 +795,111 @@ bool UPNInventoryComponent::FindFreePositionForItem(UPNItemInstance* ItemInstanc
 	}
 
 	return false;
+}
+
+void UPNInventoryComponent::OnRep_Settings()
+{
+	ClampSettings();
+	RebuildSlots();
+	OnInventoryChanged.Broadcast();
+}
+
+void UPNInventoryComponent::OnRep_ReplicatedItems()
+{
+	RebuildRuntimeItemsFromReplication();
+
+	// Debug
+	if (bDebugInventoryReplication)
+	{
+		PrintInventoryDebug();
+	}
+}
+
+bool UPNInventoryComponent::HasInventoryAuthority() const
+{
+	const AActor* OwnerActor = GetOwner();
+	return !OwnerActor || OwnerActor->HasAuthority();
+}
+
+void UPNInventoryComponent::ClampSettings()
+{
+	Settings.GridSize.Columns = FMath::Max(1, Settings.GridSize.Columns);
+	Settings.GridSize.Rows = FMath::Max(1, Settings.GridSize.Rows);
+	Settings.MaxWeight = FMath::Max(0.0f, Settings.MaxWeight);
+}
+
+void UPNInventoryComponent::SyncReplicatedItemsFromRuntime()
+{
+	if (!HasInventoryAuthority())
+	{
+		return;
+	}
+
+	ReplicatedItems.Reset();
+
+	for (const FPNInventoryItemEntry& Entry : Items)
+	{
+		if (!Entry.ItemInstance || !Entry.ItemInstance->IsValidItem())
+		{
+			continue;
+		}
+
+		FPNRepInventoryItemEntry RepEntry;
+		RepEntry.InstanceData = Entry.ItemInstance->ToRepData();
+		RepEntry.Position = Entry.Position;
+		RepEntry.Size = Entry.Size;
+		RepEntry.bRotated = Entry.bRotated;
+
+		if (RepEntry.IsValid())
+		{
+			ReplicatedItems.Add(RepEntry);
+		}
+	}
+}
+
+void UPNInventoryComponent::RebuildRuntimeItemsFromReplication()
+{
+	bRebuildingFromReplication = true;
+
+	Items.Reset();
+
+	for (const FPNRepInventoryItemEntry& RepEntry : ReplicatedItems)
+	{
+		if (!RepEntry.IsValid())
+		{
+			continue;
+		}
+
+		UPNItemInstance* NewInstance = NewObject<UPNItemInstance>(this);
+		if (!NewInstance)
+		{
+			continue;
+		}
+
+		NewInstance->InitializeFromRepData(RepEntry.InstanceData);
+
+		if (!NewInstance->IsValidItem())
+		{
+			continue;
+		}
+
+		FPNInventoryItemEntry NewEntry;
+		NewEntry.ItemInstance = NewInstance;
+		NewEntry.Position = RepEntry.Position;
+		NewEntry.Size = RepEntry.Size;
+		NewEntry.Size.Width = FMath::Max(1, NewEntry.Size.Width);
+		NewEntry.Size.Height = FMath::Max(1, NewEntry.Size.Height);
+		NewEntry.Size.bRotated = RepEntry.bRotated;
+		NewEntry.bRotated = RepEntry.bRotated;
+
+		Items.Add(NewEntry);
+	}
+
+	RebuildSlots();
+
+	bRebuildingFromReplication = false;
+
+	OnInventoryChanged.Broadcast();
 }
 
 bool UPNInventoryComponent::CanFitWeight(UPNItemInstance* ItemInstance, int32 QuantityToAdd) const
@@ -866,5 +1148,16 @@ void UPNInventoryComponent::MarkItemArea(const FPNInventoryItemEntry& Entry)
 
 void UPNInventoryComponent::BroadcastInventoryChanged()
 {
+	if (HasInventoryAuthority() && !bRebuildingFromReplication)
+	{
+		SyncReplicatedItemsFromRuntime();
+	}
+
 	OnInventoryChanged.Broadcast();
+
+	// Debug
+	if (bDebugInventoryReplication)
+	{
+		PrintInventoryDebug();
+	}
 }

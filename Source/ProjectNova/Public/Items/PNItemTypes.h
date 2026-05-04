@@ -11,6 +11,7 @@ enum class EPNItemType : uint8
 	IT_Weapon       UMETA(DisplayName = "Weapon"),
 	IT_Armor        UMETA(DisplayName = "Armor"),
 	IT_HArmor       UMETA(DisplayName = "Helmet Armor"),
+	IT_Gloves       UMETA(DisplayName = "Gloves"),
 	IT_Backpack     UMETA(DisplayName = "Backpack"),
 	IT_Container    UMETA(DisplayName = "Container"),
 	IT_Consumables  UMETA(DisplayName = "Consumables"),
@@ -44,6 +45,7 @@ enum class EPNItemCategory : uint8
 	Armor           UMETA(DisplayName = "Armor"),
 	Helmet          UMETA(DisplayName = "Helmet"),
 	Backpack        UMETA(DisplayName = "Backpack"),
+	Gloves          UMETA(DisplayName = "Gloves"),
 
 	// Container
 	Container       UMETA(DisplayName = "Container"),

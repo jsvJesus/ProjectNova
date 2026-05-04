@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "PNInventoryTypes.generated.h"
 
+class UPNItemDataAsset;
 class UPNItemInstance;
 
 UENUM(BlueprintType)
@@ -114,6 +115,38 @@ struct PROJECTNOVA_API FPNInventoryItemSize
 };
 
 USTRUCT(BlueprintType)
+struct PROJECTNOVA_API FPNRepItemInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Replication")
+	TObjectPtr<UPNItemDataAsset> ItemData = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Replication", meta = (ClampMin = "0"))
+	int32 Quantity = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Replication", meta = (ClampMin = "0.0"))
+	float CurrentDurability = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Replication", meta = (ClampMin = "0.0"))
+	float CurrentBatteryCharge = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Replication", meta = (ClampMin = "0.0"))
+	float RemainingShelfLifeSeconds = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Replication", meta = (ClampMin = "0"))
+	int32 AmmoInMagazine = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Replication")
+	bool bInitialized = false;
+
+	bool IsValid() const
+	{
+		return ItemData != nullptr && Quantity > 0;
+	}
+};
+
+USTRUCT(BlueprintType)
 struct PROJECTNOVA_API FPNInventorySlot
 {
 	GENERATED_BODY()
@@ -150,6 +183,29 @@ struct PROJECTNOVA_API FPNInventoryItemEntry
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Item")
 	bool bRotated = false;
+};
+
+USTRUCT(BlueprintType)
+struct PROJECTNOVA_API FPNRepInventoryItemEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Replication")
+	FPNRepItemInstanceData InstanceData;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Replication")
+	FPNInventoryGridPosition Position;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Replication")
+	FPNInventoryItemSize Size;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Replication")
+	bool bRotated = false;
+
+	bool IsValid() const
+	{
+		return InstanceData.IsValid();
+	}
 };
 
 USTRUCT(BlueprintType)

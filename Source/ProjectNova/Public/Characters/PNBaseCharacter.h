@@ -5,6 +5,7 @@
 #include "PNBaseCharacter.generated.h"
 
 class UPNInventoryComponent;
+class UPNEquipmentComponent;
 class USkeletalMesh;
 class USkeletalMeshComponent;
 
@@ -32,6 +33,9 @@ public:
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UPNInventoryComponent> InventoryComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UPNEquipmentComponent> EquipmentComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Modular Character")
 	TObjectPtr<USkeletalMeshComponent> ThirdPersonHeadMeshComponent;
@@ -72,6 +76,9 @@ protected:
 public:
 	UFUNCTION(BlueprintPure, Category = "Inventory")
 	UPNInventoryComponent* GetInventoryComponent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Equipment")
+	UPNEquipmentComponent* GetEquipmentComponent() const;
 
 	UFUNCTION(BlueprintPure, Category = "Modular Character")
 	USkeletalMeshComponent* GetThirdPersonHeadMeshComponent() const;

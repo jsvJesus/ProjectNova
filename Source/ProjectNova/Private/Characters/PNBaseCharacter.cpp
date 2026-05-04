@@ -3,6 +3,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Items/PNInventoryComponent.h"
+#include "Equipment/PNEquipmentComponent.h"
 #include "Net/UnrealNetwork.h"
 
 APNBaseCharacter::APNBaseCharacter()
@@ -16,6 +17,12 @@ APNBaseCharacter::APNBaseCharacter()
 	if (InventoryComponent)
 	{
 		InventoryComponent->SetIsReplicated(true);
+	}
+
+	EquipmentComponent = CreateDefaultSubobject<UPNEquipmentComponent>(TEXT("EquipmentComponent"));
+	if (EquipmentComponent)
+	{
+		EquipmentComponent->SetIsReplicated(true);
 	}
 
 	GetMesh()->SetIsReplicated(true);
@@ -111,6 +118,11 @@ float APNBaseCharacter::TakeDamage(
 UPNInventoryComponent* APNBaseCharacter::GetInventoryComponent() const
 {
 	return InventoryComponent;
+}
+
+UPNEquipmentComponent* APNBaseCharacter::GetEquipmentComponent() const
+{
+	return EquipmentComponent;
 }
 
 USkeletalMeshComponent* APNBaseCharacter::GetThirdPersonHeadMeshComponent() const

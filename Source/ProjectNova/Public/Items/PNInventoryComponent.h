@@ -20,20 +20,26 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Settings")
+	UPROPERTY(ReplicatedUsing = OnRep_Settings, EditAnywhere, BlueprintReadOnly, Category = "Inventory|Settings")
 	FPNInventorySettings Settings;
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory")
 	FPNInventoryChangedSignature OnInventoryChanged;
 
 protected:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Runtime")
+	UPROPERTY(ReplicatedUsing = OnRep_ReplicatedItems, VisibleAnywhere, BlueprintReadOnly, Category = "Inventory|Replication")
+	TArray<FPNRepInventoryItemEntry> ReplicatedItems;
+
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category = "Runtime")
 	TArray<FPNInventorySlot> Slots;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Runtime")
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category = "Runtime")
 	TArray<FPNInventoryItemEntry> Items;
+
+	bool bRebuildingFromReplication = false;
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
@@ -58,6 +64,12 @@ public:
 	FPNInventoryMoveItemResult MoveItemFromPosition(FPNInventoryGridPosition OldPosition, FPNInventoryGridPosition NewPosition, bool bRotated = false);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void RequestMoveItemFromPosition(FPNInventoryGridPosition OldPosition, FPNInventoryGridPosition NewPosition, bool bRotated = false);
+
+	UFUNCTION(Server, Reliable)
+	void Server_MoveItemFromPosition(FPNInventoryGridPosition OldPosition, FPNInventoryGridPosition NewPosition, bool bRotated);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	FPNInventoryRemoveItemResult RemoveItemInstance(UPNItemInstance* ItemInstance, int32 QuantityToRemove = 1);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
@@ -68,6 +80,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Inventory")
 	const TArray<FPNInventoryItemEntry>& GetItems() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory")
+	const TArray<FPNRepInventoryItemEntry>& GetReplicatedItems() const;
 
 	UFUNCTION(BlueprintPure, Category = "Inventory")
 	int32 GetColumns() const;
@@ -114,7 +129,31 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Inventory")
 	bool FindFreePositionForItem(UPNItemInstance* ItemInstance, bool bAutoRotate, FPNInventoryGridPosition& OutPosition, bool& bOutRotated) const;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Debug")
+	bool bDebugInventoryReplication = true;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Debug")
+	int32 GetInventoryItemCount() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Debug")
+	FString GetInventoryDebugString() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Debug")
+	void PrintInventoryDebug() const;
+
 protected:
+	UFUNCTION()
+	void OnRep_Settings();
+
+	UFUNCTION()
+	void OnRep_ReplicatedItems();
+
+	bool HasInventoryAuthority() const;
+	void ClampSettings();
+
+	void SyncReplicatedItemsFromRuntime();
+	void RebuildRuntimeItemsFromReplication();
+
 	bool CanFitWeight(UPNItemInstance* ItemInstance, int32 QuantityToAdd) const;
 	bool TryStackItem(UPNItemInstance* SourceItem, int32& InOutRemainingQuantity, FPNInventoryAddItemResult& InOutResult);
 	bool IsAreaFreeInternal(FPNInventoryGridPosition Position, FPNInventoryItemSize Size, const UPNItemInstance* IgnoredItem) const;

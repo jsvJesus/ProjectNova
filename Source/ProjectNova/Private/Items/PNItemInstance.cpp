@@ -11,6 +11,35 @@ void UPNItemInstance::Initialize(UPNItemDataAsset* InItemData, int32 InQuantity)
 	ClampRuntimeValues();
 }
 
+void UPNItemInstance::InitializeFromRepData(const FPNRepItemInstanceData& RepData)
+{
+	ItemData = RepData.ItemData;
+	Quantity = FMath::Max(0, RepData.Quantity);
+
+	CurrentDurability = RepData.CurrentDurability;
+	CurrentBatteryCharge = RepData.CurrentBatteryCharge;
+	RemainingShelfLifeSeconds = RepData.RemainingShelfLifeSeconds;
+	AmmoInMagazine = RepData.AmmoInMagazine;
+	bInitialized = RepData.bInitialized && ItemData != nullptr && Quantity > 0;
+
+	ClampRuntimeValues();
+}
+
+FPNRepItemInstanceData UPNItemInstance::ToRepData() const
+{
+	FPNRepItemInstanceData RepData;
+
+	RepData.ItemData = ItemData;
+	RepData.Quantity = Quantity;
+	RepData.CurrentDurability = CurrentDurability;
+	RepData.CurrentBatteryCharge = CurrentBatteryCharge;
+	RepData.RemainingShelfLifeSeconds = RemainingShelfLifeSeconds;
+	RepData.AmmoInMagazine = AmmoInMagazine;
+	RepData.bInitialized = bInitialized;
+
+	return RepData;
+}
+
 bool UPNItemInstance::IsValidItem() const
 {
 	return ItemData != nullptr && !IsEmpty();
