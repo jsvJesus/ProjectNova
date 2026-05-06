@@ -1,6 +1,7 @@
 #include "Characters/PNBaseCharacter.h"
 
 #include "Components/SkeletalMeshComponent.h"
+#include "Items/PNInventoryActionComponent.h"
 #include "Equipment/PNEquipmentComponent.h"
 #include "Equipment/PNEquipmentVisualComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -44,6 +45,12 @@ APNBaseCharacter::APNBaseCharacter()
 	if (QuickSlotComponent)
 	{
 		QuickSlotComponent->SetIsReplicated(true);
+	}
+
+	InventoryActionComponent = CreateDefaultSubobject<UPNInventoryActionComponent>(TEXT("InventoryActionComponent"));
+	if (InventoryActionComponent)
+	{
+		InventoryActionComponent->SetIsReplicated(true);
 	}
 
 	GetMesh()->SetIsReplicated(true);
@@ -138,6 +145,11 @@ float APNBaseCharacter::TakeDamage(
 UPNInventoryComponent* APNBaseCharacter::GetInventoryComponent() const
 {
 	return InventoryComponent;
+}
+
+UPNInventoryActionComponent* APNBaseCharacter::GetInventoryActionComponent() const
+{
+	return InventoryActionComponent;
 }
 
 UPNEquipmentComponent* APNBaseCharacter::GetEquipmentComponent() const
