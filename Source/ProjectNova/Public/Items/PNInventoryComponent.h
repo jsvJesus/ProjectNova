@@ -33,6 +33,12 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_ReplicatedItems, VisibleAnywhere, BlueprintReadOnly, Category = "Inventory|Replication")
 	TArray<FPNRepInventoryItemEntry> ReplicatedItems;
 
+	UPROPERTY(ReplicatedUsing = OnRep_QuickSlots, EditAnywhere, BlueprintReadOnly, Category = "Inventory|Quick Slots", meta = (ClampMin = "1", ClampMax = "12"))
+	int32 QuickSlotCount = 6;
+
+	UPROPERTY(ReplicatedUsing = OnRep_QuickSlots, VisibleAnywhere, BlueprintReadOnly, Category = "Inventory|Quick Slots")
+	TArray<FPNInventoryQuickSlotEntry> QuickSlots;
+
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category = "Runtime")
 	TArray<FPNInventorySlot> Slots;
 
@@ -129,6 +135,42 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Inventory")
 	bool FindFreePositionForItem(UPNItemInstance* ItemInstance, bool bAutoRotate, FPNInventoryGridPosition& OutPosition, bool& bOutRotated) const;
 
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Quick Slots")
+	void InitializeQuickSlots();
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Quick Slots")
+	FPNInventoryAddItemResult AddItemToQuickSlot(UPNItemInstance* ItemInstance, int32 SlotIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Quick Slots")
+	FPNInventoryAddItemResult MoveItemFromInventoryToQuickSlot(FPNInventoryGridPosition InventoryPosition, int32 SlotIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Quick Slots")
+	FPNInventoryAddItemResult MoveQuickSlotToInventory(int32 SlotIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Quick Slots")
+	FPNInventoryRemoveItemResult RemoveItemFromQuickSlot(int32 SlotIndex, int32 QuantityToRemove = 1);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Quick Slots")
+	void ClearQuickSlot(int32 SlotIndex);
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Quick Slots")
+	bool IsValidQuickSlotIndex(int32 SlotIndex) const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Quick Slots")
+	bool IsQuickSlotOccupied(int32 SlotIndex) const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Quick Slots")
+	bool CanPlaceItemDataIntoQuickSlot(UPNItemDataAsset* ItemData) const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Quick Slots")
+	FPNInventoryQuickSlotEntry GetQuickSlotEntry(int32 SlotIndex) const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Quick Slots")
+	UPNItemDataAsset* GetQuickSlotItemData(int32 SlotIndex) const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Quick Slots")
+	const TArray<FPNInventoryQuickSlotEntry>& GetQuickSlots() const;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Debug")
 	bool bDebugInventoryReplication = true;
 
@@ -168,4 +210,15 @@ protected:
 	void RemoveItemEntryByIndex(int32 EntryIndex);
 	void MarkItemArea(const FPNInventoryItemEntry& Entry);
 	void BroadcastInventoryChanged();
+
+	UFUNCTION()
+	void OnRep_QuickSlots();
+
+	void BuildDefaultQuickSlots();
+
+	int32 FindQuickSlotArrayIndex(int32 SlotIndex) const;
+	int32 FindOrCreateQuickSlotArrayIndex(int32 SlotIndex);
+
+	void SetQuickSlotDataInternal(int32 SlotIndex, const FPNRepItemInstanceData& InstanceData);
+	void ClearQuickSlotDataInternal(int32 SlotIndex);
 };

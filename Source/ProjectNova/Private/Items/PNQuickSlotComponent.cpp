@@ -19,31 +19,30 @@ void UPNQuickSlotComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (HasQuickSlotAuthority())
+	if (UPNInventoryComponent* InventoryComponent = GetOwnerInventoryComponent())
 	{
-		InitializeQuickSlots();
+		InventoryComponent->OnInventoryChanged.AddDynamic(this, &UPNQuickSlotComponent::HandleInventoryChanged);
 	}
+
+	BroadcastQuickSlotsChanged();
+	BroadcastSelectedQuickSlot();
+}
+
+void UPNQuickSlotComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UPNInventoryComponent* InventoryComponent = GetOwnerInventoryComponent())
+	{
+		InventoryComponent->OnInventoryChanged.RemoveDynamic(this, &UPNQuickSlotComponent::HandleInventoryChanged);
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 void UPNQuickSlotComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(UPNQuickSlotComponent, QuickSlots);
 	DOREPLIFETIME(UPNQuickSlotComponent, SelectedQuickSlotIndex);
-}
-
-void UPNQuickSlotComponent::InitializeQuickSlots()
-{
-	if (!HasQuickSlotAuthority())
-	{
-		return;
-	}
-
-	QuickSlotCount = FMath::Clamp(QuickSlotCount, 1, 12);
-	BuildDefaultQuickSlots();
-
-	BroadcastQuickSlotsChanged();
 }
 
 FPNQuickSlotOperationResponse UPNQuickSlotComponent::AssignFromInventoryPosition(FPNInventoryGridPosition InventoryPosition, int32 SlotIndex)
@@ -58,18 +57,6 @@ FPNQuickSlotOperationResponse UPNQuickSlotComponent::AssignFromInventoryPosition
 		return Response;
 	}
 
-	if (!IsValidQuickSlotIndex(SlotIndex))
-	{
-		Response.Result = EPNQuickSlotOperationResult::InvalidSlotIndex;
-		return Response;
-	}
-
-	if (IsQuickSlotOccupied(SlotIndex))
-	{
-		Response.Result = EPNQuickSlotOperationResult::SlotOccupied;
-		return Response;
-	}
-
 	UPNInventoryComponent* InventoryComponent = GetOwnerInventoryComponent();
 	if (!InventoryComponent)
 	{
@@ -77,41 +64,16 @@ FPNQuickSlotOperationResponse UPNQuickSlotComponent::AssignFromInventoryPosition
 		return Response;
 	}
 
-	UPNItemInstance* SourceItem = InventoryComponent->GetItemAtPosition(InventoryPosition);
-	if (!SourceItem || !SourceItem->IsValidItem() || !SourceItem->GetItemData())
-	{
-		Response.Result = EPNQuickSlotOperationResult::InvalidItem;
-		return Response;
-	}
+	const UPNItemInstance* SourceItem = InventoryComponent->GetItemAtPosition(InventoryPosition);
+	UPNItemDataAsset* SourceItemData = SourceItem ? SourceItem->GetItemData() : nullptr;
 
-	if (!CanPlaceItemDataIntoQuickSlot(SourceItem->GetItemData()))
-	{
-		Response.Result = EPNQuickSlotOperationResult::ItemTypeNotAllowed;
-		return Response;
-	}
+	FPNInventoryAddItemResult MoveResult = InventoryComponent->MoveItemFromInventoryToQuickSlot(InventoryPosition, SlotIndex);
 
-	const int32 QuantityToMove = FMath::Max(1, SourceItem->Quantity);
-
-	FPNInventoryRemoveItemResult RemoveResult = InventoryComponent->RemoveItemAtPosition(InventoryPosition, QuantityToMove);
-	if (!RemoveResult.bSuccess || !RemoveResult.RemovedItemInstance || !RemoveResult.RemovedItemInstance->IsValidItem())
-	{
-		Response.Result = ConvertInventoryRemoveFail(RemoveResult.Result);
-		return Response;
-	}
-
-	FPNRepItemInstanceData SlotData = RemoveResult.RemovedItemInstance->ToRepData();
-	if (!SlotData.IsValid())
-	{
-		Response.Result = EPNQuickSlotOperationResult::InvalidItem;
-		return Response;
-	}
-
-	SetQuickSlotData(SlotIndex, SlotData);
-
-	Response.bSuccess = true;
-	Response.Result = EPNQuickSlotOperationResult::Success;
-	Response.ItemData = SlotData.ItemData;
-	Response.Quantity = SlotData.Quantity;
+	Response.bSuccess = MoveResult.bSuccess;
+	Response.SlotIndex = SlotIndex;
+	Response.Quantity = MoveResult.AddedQuantity;
+	Response.ItemData = SourceItemData ? SourceItemData : InventoryComponent->GetQuickSlotItemData(SlotIndex);
+	Response.Result = MoveResult.bSuccess ? EPNQuickSlotOperationResult::Success : ConvertInventoryAddFail(MoveResult.Result);
 
 	BroadcastQuickSlotsChanged();
 
@@ -130,19 +92,6 @@ FPNQuickSlotOperationResponse UPNQuickSlotComponent::ClearQuickSlotToInventory(i
 		return Response;
 	}
 
-	if (!IsValidQuickSlotIndex(SlotIndex))
-	{
-		Response.Result = EPNQuickSlotOperationResult::InvalidSlotIndex;
-		return Response;
-	}
-
-	const int32 SlotArrayIndex = FindQuickSlotArrayIndex(SlotIndex);
-	if (!QuickSlots.IsValidIndex(SlotArrayIndex) || QuickSlots[SlotArrayIndex].IsEmpty())
-	{
-		Response.Result = EPNQuickSlotOperationResult::SlotEmpty;
-		return Response;
-	}
-
 	UPNInventoryComponent* InventoryComponent = GetOwnerInventoryComponent();
 	if (!InventoryComponent)
 	{
@@ -150,51 +99,24 @@ FPNQuickSlotOperationResponse UPNQuickSlotComponent::ClearQuickSlotToInventory(i
 		return Response;
 	}
 
-	UPNItemInstance* ItemInstance = NewObject<UPNItemInstance>(this);
-	if (!ItemInstance)
+	const FPNInventoryQuickSlotEntry OldEntry = InventoryComponent->GetQuickSlotEntry(SlotIndex);
+	if (OldEntry.IsEmpty())
 	{
-		Response.Result = EPNQuickSlotOperationResult::InvalidItem;
+		Response.Result = EPNQuickSlotOperationResult::SlotEmpty;
 		return Response;
 	}
 
-	ItemInstance->InitializeFromRepData(QuickSlots[SlotArrayIndex].InstanceData);
+	FPNInventoryAddItemResult MoveResult = InventoryComponent->MoveQuickSlotToInventory(SlotIndex);
 
-	if (!ItemInstance->IsValidItem())
+	Response.bSuccess = MoveResult.bSuccess;
+	Response.Result = MoveResult.bSuccess ? EPNQuickSlotOperationResult::Success : ConvertInventoryAddFail(MoveResult.Result);
+	Response.ItemData = OldEntry.InstanceData.ItemData;
+	Response.Quantity = MoveResult.AddedQuantity;
+
+	if (MoveResult.bSuccess && SelectedQuickSlotIndex == SlotIndex && !InventoryComponent->IsQuickSlotOccupied(SlotIndex))
 	{
-		Response.Result = EPNQuickSlotOperationResult::InvalidItem;
-		return Response;
-	}
-
-	const int32 OriginalQuantity = ItemInstance->Quantity;
-
-	FPNInventoryAddItemResult AddResult = InventoryComponent->AddItem(ItemInstance, true, true);
-	if (AddResult.AddedQuantity <= 0)
-	{
-		Response.Result = ConvertInventoryAddFail(AddResult.Result);
-		return Response;
-	}
-
-	Response.ItemData = ItemInstance->GetItemData();
-	Response.Quantity = AddResult.AddedQuantity;
-
-	if (AddResult.RemainingQuantity <= 0)
-	{
-		ClearQuickSlotData(SlotIndex);
-
-		if (SelectedQuickSlotIndex == SlotIndex)
-		{
-			SelectedQuickSlotIndex = INDEX_NONE;
-			BroadcastSelectedQuickSlot();
-		}
-
-		Response.bSuccess = true;
-		Response.Result = EPNQuickSlotOperationResult::Success;
-	}
-	else
-	{
-		QuickSlots[SlotArrayIndex].InstanceData.Quantity = FMath::Clamp(AddResult.RemainingQuantity, 1, OriginalQuantity);
-		Response.bSuccess = false;
-		Response.Result = EPNQuickSlotOperationResult::InventoryAddFailed;
+		SelectedQuickSlotIndex = INDEX_NONE;
+		BroadcastSelectedQuickSlot();
 	}
 
 	BroadcastQuickSlotsChanged();
@@ -214,7 +136,14 @@ FPNQuickSlotOperationResponse UPNQuickSlotComponent::SelectQuickSlot(int32 SlotI
 		return Response;
 	}
 
-	if (!IsValidQuickSlotIndex(SlotIndex))
+	UPNInventoryComponent* InventoryComponent = GetOwnerInventoryComponent();
+	if (!InventoryComponent)
+	{
+		Response.Result = EPNQuickSlotOperationResult::InvalidInventory;
+		return Response;
+	}
+
+	if (!InventoryComponent->IsValidQuickSlotIndex(SlotIndex))
 	{
 		Response.Result = EPNQuickSlotOperationResult::InvalidSlotIndex;
 		return Response;
@@ -222,7 +151,8 @@ FPNQuickSlotOperationResponse UPNQuickSlotComponent::SelectQuickSlot(int32 SlotI
 
 	SelectedQuickSlotIndex = SlotIndex;
 
-	const FPNQuickSlotEntry SlotEntry = GetQuickSlotEntry(SlotIndex);
+	const FPNInventoryQuickSlotEntry SlotEntry = InventoryComponent->GetQuickSlotEntry(SlotIndex);
+
 	Response.ItemData = SlotEntry.InstanceData.ItemData;
 	Response.Quantity = SlotEntry.InstanceData.Quantity;
 	Response.bSuccess = true;
@@ -239,13 +169,20 @@ FPNQuickSlotOperationResponse UPNQuickSlotComponent::ActivateQuickSlot(int32 Slo
 	Response.SlotIndex = SlotIndex;
 	Response.Result = EPNQuickSlotOperationResult::UnknownError;
 
-	if (!IsValidQuickSlotIndex(SlotIndex))
+	UPNInventoryComponent* InventoryComponent = GetOwnerInventoryComponent();
+	if (!InventoryComponent)
+	{
+		Response.Result = EPNQuickSlotOperationResult::InvalidInventory;
+		return Response;
+	}
+
+	if (!InventoryComponent->IsValidQuickSlotIndex(SlotIndex))
 	{
 		Response.Result = EPNQuickSlotOperationResult::InvalidSlotIndex;
 		return Response;
 	}
 
-	const FPNQuickSlotEntry SlotEntry = GetQuickSlotEntry(SlotIndex);
+	const FPNInventoryQuickSlotEntry SlotEntry = InventoryComponent->GetQuickSlotEntry(SlotIndex);
 
 	if (!SlotEntry.IsOccupied())
 	{
@@ -284,20 +221,21 @@ FPNQuickSlotOperationResponse UPNQuickSlotComponent::UseQuickSlot(int32 SlotInde
 		return Response;
 	}
 
-	if (!IsValidQuickSlotIndex(SlotIndex))
+	UPNInventoryComponent* InventoryComponent = GetOwnerInventoryComponent();
+	if (!InventoryComponent)
 	{
-		Response.Result = EPNQuickSlotOperationResult::InvalidSlotIndex;
+		Response.Result = EPNQuickSlotOperationResult::InvalidInventory;
 		return Response;
 	}
 
-	const int32 SlotArrayIndex = FindQuickSlotArrayIndex(SlotIndex);
-	if (!QuickSlots.IsValidIndex(SlotArrayIndex) || QuickSlots[SlotArrayIndex].IsEmpty())
+	const FPNInventoryQuickSlotEntry SlotEntry = InventoryComponent->GetQuickSlotEntry(SlotIndex);
+	if (SlotEntry.IsEmpty())
 	{
 		Response.Result = EPNQuickSlotOperationResult::SlotEmpty;
 		return Response;
 	}
 
-	UPNItemDataAsset* ItemData = QuickSlots[SlotArrayIndex].InstanceData.ItemData;
+	UPNItemDataAsset* ItemData = SlotEntry.InstanceData.ItemData;
 	if (!ItemData)
 	{
 		Response.Result = EPNQuickSlotOperationResult::InvalidItem;
@@ -316,23 +254,25 @@ FPNQuickSlotOperationResponse UPNQuickSlotComponent::UseQuickSlot(int32 SlotInde
 		return Response;
 	}
 
-	if (!ApplyConsumableEffects(QuickSlots[SlotArrayIndex].InstanceData))
+	FPNInventoryRemoveItemResult RemoveResult = InventoryComponent->RemoveItemFromQuickSlot(SlotIndex, 1);
+	if (!RemoveResult.bSuccess || !RemoveResult.RemovedItemInstance || !RemoveResult.RemovedItemInstance->IsValidItem())
+	{
+		Response.Result = ConvertInventoryRemoveFail(RemoveResult.Result);
+		return Response;
+	}
+
+	const FPNRepItemInstanceData UsedData = RemoveResult.RemovedItemInstance->ToRepData();
+
+	if (!ApplyConsumableEffects(UsedData))
 	{
 		Response.Result = EPNQuickSlotOperationResult::InvalidItem;
 		return Response;
 	}
 
-	QuickSlots[SlotArrayIndex].InstanceData.Quantity--;
-
 	Response.ItemData = ItemData;
-	Response.Quantity = FMath::Max(0, QuickSlots[SlotArrayIndex].InstanceData.Quantity);
+	Response.Quantity = FMath::Max(0, SlotEntry.InstanceData.Quantity - 1);
 	Response.bSuccess = true;
 	Response.Result = EPNQuickSlotOperationResult::Success;
-
-	if (QuickSlots[SlotArrayIndex].InstanceData.Quantity <= 0)
-	{
-		ClearQuickSlotData(SlotIndex);
-	}
 
 	BroadcastQuickSlotsChanged();
 
@@ -388,7 +328,7 @@ FPNQuickSlotOperationResponse UPNQuickSlotComponent::UseInventoryConsumable(FPNI
 		return Response;
 	}
 
-	FPNRepItemInstanceData UsedData = RemoveResult.RemovedItemInstance->ToRepData();
+	const FPNRepItemInstanceData UsedData = RemoveResult.RemovedItemInstance->ToRepData();
 
 	if (!ApplyConsumableEffects(UsedData))
 	{
@@ -559,19 +499,14 @@ void UPNQuickSlotComponent::Client_PlayFirstPersonUseAnimation_Implementation(EP
 
 bool UPNQuickSlotComponent::IsValidQuickSlotIndex(int32 SlotIndex) const
 {
-	return SlotIndex >= 0 && SlotIndex < FMath::Clamp(QuickSlotCount, 1, 12);
+	const UPNInventoryComponent* InventoryComponent = GetOwnerInventoryComponent();
+	return InventoryComponent && InventoryComponent->IsValidQuickSlotIndex(SlotIndex);
 }
 
 bool UPNQuickSlotComponent::IsQuickSlotOccupied(int32 SlotIndex) const
 {
-	const int32 SlotArrayIndex = FindQuickSlotArrayIndex(SlotIndex);
-
-	if (!QuickSlots.IsValidIndex(SlotArrayIndex))
-	{
-		return false;
-	}
-
-	return QuickSlots[SlotArrayIndex].IsOccupied();
+	const UPNInventoryComponent* InventoryComponent = GetOwnerInventoryComponent();
+	return InventoryComponent && InventoryComponent->IsQuickSlotOccupied(SlotIndex);
 }
 
 bool UPNQuickSlotComponent::IsQuickSlotSelected(int32 SlotIndex) const
@@ -579,46 +514,34 @@ bool UPNQuickSlotComponent::IsQuickSlotSelected(int32 SlotIndex) const
 	return SelectedQuickSlotIndex == SlotIndex;
 }
 
-bool UPNQuickSlotComponent::CanPlaceItemDataIntoQuickSlot(UPNItemDataAsset* ItemData) const
-{
-	if (!ItemData)
-	{
-		return false;
-	}
-
-	return ItemData->ItemType == EPNItemType::IT_Consumables
-		|| ItemData->ItemType == EPNItemType::IT_Items
-		|| ItemData->ItemType == EPNItemType::IT_Builds;
-}
-
 bool UPNQuickSlotComponent::IsConsumableItemData(UPNItemDataAsset* ItemData) const
 {
 	return ItemData && ItemData->ItemType == EPNItemType::IT_Consumables;
 }
 
-FPNQuickSlotEntry UPNQuickSlotComponent::GetQuickSlotEntry(int32 SlotIndex) const
+FPNInventoryQuickSlotEntry UPNQuickSlotComponent::GetQuickSlotEntry(int32 SlotIndex) const
 {
-	const int32 SlotArrayIndex = FindQuickSlotArrayIndex(SlotIndex);
+	const UPNInventoryComponent* InventoryComponent = GetOwnerInventoryComponent();
 
-	if (!QuickSlots.IsValidIndex(SlotArrayIndex))
+	if (!InventoryComponent)
 	{
-		FPNQuickSlotEntry EmptyEntry;
+		FPNInventoryQuickSlotEntry EmptyEntry;
 		EmptyEntry.SlotIndex = SlotIndex;
 		return EmptyEntry;
 	}
 
-	return QuickSlots[SlotArrayIndex];
+	return InventoryComponent->GetQuickSlotEntry(SlotIndex);
 }
 
-FPNQuickSlotEntry UPNQuickSlotComponent::GetSelectedQuickSlotEntry() const
+FPNInventoryQuickSlotEntry UPNQuickSlotComponent::GetSelectedQuickSlotEntry() const
 {
 	return GetQuickSlotEntry(SelectedQuickSlotIndex);
 }
 
 UPNItemDataAsset* UPNQuickSlotComponent::GetQuickSlotItemData(int32 SlotIndex) const
 {
-	const FPNQuickSlotEntry SlotEntry = GetQuickSlotEntry(SlotIndex);
-	return SlotEntry.InstanceData.ItemData;
+	const UPNInventoryComponent* InventoryComponent = GetOwnerInventoryComponent();
+	return InventoryComponent ? InventoryComponent->GetQuickSlotItemData(SlotIndex) : nullptr;
 }
 
 UPNItemDataAsset* UPNQuickSlotComponent::GetSelectedQuickSlotItemData() const
@@ -631,9 +554,12 @@ int32 UPNQuickSlotComponent::GetSelectedQuickSlotIndex() const
 	return SelectedQuickSlotIndex;
 }
 
-const TArray<FPNQuickSlotEntry>& UPNQuickSlotComponent::GetQuickSlots() const
+const TArray<FPNInventoryQuickSlotEntry>& UPNQuickSlotComponent::GetQuickSlots() const
 {
-	return QuickSlots;
+	static const TArray<FPNInventoryQuickSlotEntry> EmptyQuickSlots;
+
+	const UPNInventoryComponent* InventoryComponent = GetOwnerInventoryComponent();
+	return InventoryComponent ? InventoryComponent->GetQuickSlots() : EmptyQuickSlots;
 }
 
 FString UPNQuickSlotComponent::GetQuickSlotsDebugString() const
@@ -655,7 +581,7 @@ FString UPNQuickSlotComponent::GetQuickSlotsDebugString() const
 		SelectedQuickSlotIndex
 	);
 
-	for (const FPNQuickSlotEntry& SlotEntry : QuickSlots)
+	for (const FPNInventoryQuickSlotEntry& SlotEntry : GetQuickSlots())
 	{
 		const UPNItemDataAsset* ItemData = SlotEntry.InstanceData.ItemData;
 
@@ -695,18 +621,6 @@ void UPNQuickSlotComponent::PrintQuickSlotsDebug() const
 	}
 }
 
-void UPNQuickSlotComponent::OnRep_QuickSlots()
-{
-	OnQuickSlotsChanged.Broadcast();
-
-	if (bDebugQuickSlots)
-	{
-		PrintQuickSlotsDebug();
-	}
-
-	BroadcastSelectedQuickSlot();
-}
-
 void UPNQuickSlotComponent::OnRep_SelectedQuickSlotIndex()
 {
 	BroadcastSelectedQuickSlot();
@@ -715,6 +629,12 @@ void UPNQuickSlotComponent::OnRep_SelectedQuickSlotIndex()
 	{
 		PrintQuickSlotsDebug();
 	}
+}
+
+void UPNQuickSlotComponent::HandleInventoryChanged()
+{
+	BroadcastQuickSlotsChanged();
+	BroadcastSelectedQuickSlot();
 }
 
 bool UPNQuickSlotComponent::HasQuickSlotAuthority() const
@@ -733,72 +653,6 @@ UPNCharacterStatsComponent* UPNQuickSlotComponent::GetOwnerCharacterStatsCompone
 {
 	const APNBaseCharacter* OwnerCharacter = Cast<APNBaseCharacter>(GetOwner());
 	return OwnerCharacter ? OwnerCharacter->GetCharacterStatsComponent() : nullptr;
-}
-
-void UPNQuickSlotComponent::BuildDefaultQuickSlots()
-{
-	QuickSlotCount = FMath::Clamp(QuickSlotCount, 1, 12);
-
-	for (int32 Index = 0; Index < QuickSlotCount; ++Index)
-	{
-		FindOrCreateQuickSlotArrayIndex(Index);
-	}
-}
-
-int32 UPNQuickSlotComponent::FindQuickSlotArrayIndex(int32 SlotIndex) const
-{
-	for (int32 Index = 0; Index < QuickSlots.Num(); ++Index)
-	{
-		if (QuickSlots[Index].SlotIndex == SlotIndex)
-		{
-			return Index;
-		}
-	}
-
-	return INDEX_NONE;
-}
-
-int32 UPNQuickSlotComponent::FindOrCreateQuickSlotArrayIndex(int32 SlotIndex)
-{
-	if (!IsValidQuickSlotIndex(SlotIndex))
-	{
-		return INDEX_NONE;
-	}
-
-	const int32 ExistingIndex = FindQuickSlotArrayIndex(SlotIndex);
-	if (ExistingIndex != INDEX_NONE)
-	{
-		return ExistingIndex;
-	}
-
-	FPNQuickSlotEntry NewEntry;
-	NewEntry.SlotIndex = SlotIndex;
-
-	return QuickSlots.Add(NewEntry);
-}
-
-void UPNQuickSlotComponent::SetQuickSlotData(int32 SlotIndex, const FPNRepItemInstanceData& InstanceData)
-{
-	const int32 SlotArrayIndex = FindOrCreateQuickSlotArrayIndex(SlotIndex);
-
-	if (!QuickSlots.IsValidIndex(SlotArrayIndex))
-	{
-		return;
-	}
-
-	QuickSlots[SlotArrayIndex].InstanceData = InstanceData;
-}
-
-void UPNQuickSlotComponent::ClearQuickSlotData(int32 SlotIndex)
-{
-	const int32 SlotArrayIndex = FindQuickSlotArrayIndex(SlotIndex);
-
-	if (!QuickSlots.IsValidIndex(SlotArrayIndex))
-	{
-		return;
-	}
-
-	QuickSlots[SlotArrayIndex].InstanceData = FPNRepItemInstanceData();
 }
 
 bool UPNQuickSlotComponent::ApplyConsumableEffects(const FPNRepItemInstanceData& InstanceData)
@@ -915,8 +769,15 @@ EPNQuickSlotOperationResult UPNQuickSlotComponent::ConvertInventoryAddFail(EPNIn
 	case EPNInventoryOperationResult::InvalidItem:
 		return EPNQuickSlotOperationResult::InvalidItem;
 
-	case EPNInventoryOperationResult::NoSpace:
-	case EPNInventoryOperationResult::OverWeight:
+	case EPNInventoryOperationResult::SlotEmpty:
+		return EPNQuickSlotOperationResult::SlotEmpty;
+
+	case EPNInventoryOperationResult::SlotOccupied:
+		return EPNQuickSlotOperationResult::SlotOccupied;
+
+	case EPNInventoryOperationResult::ItemTypeNotAllowed:
+		return EPNQuickSlotOperationResult::ItemTypeNotAllowed;
+
 	default:
 		return EPNQuickSlotOperationResult::InventoryAddFailed;
 	}

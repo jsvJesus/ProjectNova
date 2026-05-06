@@ -9,7 +9,6 @@
 
 class UPNInventoryComponent;
 class UPNItemDataAsset;
-class UPNItemInstance;
 class UPNCharacterStatsComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPNQuickSlotsChangedSignature);
@@ -26,6 +25,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 public:
@@ -38,23 +38,14 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Quick Slots")
 	FPNQuickSlotUseAnimationSignature OnFirstPersonUseAnimationRequested;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quick Slots|Settings", meta = (ClampMin = "1", ClampMax = "12"))
-	int32 QuickSlotCount = 6;
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quick Slots|Debug")
 	bool bDebugQuickSlots = true;
 
 protected:
-	UPROPERTY(ReplicatedUsing = OnRep_QuickSlots, VisibleAnywhere, BlueprintReadOnly, Category = "Quick Slots|Replication")
-	TArray<FPNQuickSlotEntry> QuickSlots;
-
 	UPROPERTY(ReplicatedUsing = OnRep_SelectedQuickSlotIndex, VisibleAnywhere, BlueprintReadOnly, Category = "Quick Slots|Replication")
 	int32 SelectedQuickSlotIndex = INDEX_NONE;
 
 public:
-	UFUNCTION(BlueprintCallable, Category = "Quick Slots")
-	void InitializeQuickSlots();
-
 	UFUNCTION(BlueprintCallable, Category = "Quick Slots")
 	FPNQuickSlotOperationResponse AssignFromInventoryPosition(FPNInventoryGridPosition InventoryPosition, int32 SlotIndex);
 
@@ -122,16 +113,13 @@ public:
 	bool IsQuickSlotSelected(int32 SlotIndex) const;
 
 	UFUNCTION(BlueprintPure, Category = "Quick Slots")
-	bool CanPlaceItemDataIntoQuickSlot(UPNItemDataAsset* ItemData) const;
-
-	UFUNCTION(BlueprintPure, Category = "Quick Slots")
 	bool IsConsumableItemData(UPNItemDataAsset* ItemData) const;
 
 	UFUNCTION(BlueprintPure, Category = "Quick Slots")
-	FPNQuickSlotEntry GetQuickSlotEntry(int32 SlotIndex) const;
+	FPNInventoryQuickSlotEntry GetQuickSlotEntry(int32 SlotIndex) const;
 
 	UFUNCTION(BlueprintPure, Category = "Quick Slots")
-	FPNQuickSlotEntry GetSelectedQuickSlotEntry() const;
+	FPNInventoryQuickSlotEntry GetSelectedQuickSlotEntry() const;
 
 	UFUNCTION(BlueprintPure, Category = "Quick Slots")
 	UPNItemDataAsset* GetQuickSlotItemData(int32 SlotIndex) const;
@@ -143,7 +131,7 @@ public:
 	int32 GetSelectedQuickSlotIndex() const;
 
 	UFUNCTION(BlueprintPure, Category = "Quick Slots")
-	const TArray<FPNQuickSlotEntry>& GetQuickSlots() const;
+	const TArray<FPNInventoryQuickSlotEntry>& GetQuickSlots() const;
 
 	UFUNCTION(BlueprintPure, Category = "Quick Slots|Debug")
 	FString GetQuickSlotsDebugString() const;
@@ -153,23 +141,15 @@ public:
 
 protected:
 	UFUNCTION()
-	void OnRep_QuickSlots();
+	void OnRep_SelectedQuickSlotIndex();
 
 	UFUNCTION()
-	void OnRep_SelectedQuickSlotIndex();
+	void HandleInventoryChanged();
 
 	bool HasQuickSlotAuthority() const;
 
 	UPNInventoryComponent* GetOwnerInventoryComponent() const;
 	UPNCharacterStatsComponent* GetOwnerCharacterStatsComponent() const;
-
-	void BuildDefaultQuickSlots();
-
-	int32 FindQuickSlotArrayIndex(int32 SlotIndex) const;
-	int32 FindOrCreateQuickSlotArrayIndex(int32 SlotIndex);
-
-	void SetQuickSlotData(int32 SlotIndex, const FPNRepItemInstanceData& InstanceData);
-	void ClearQuickSlotData(int32 SlotIndex);
 
 	bool ApplyConsumableEffects(const FPNRepItemInstanceData& InstanceData);
 	float RollStatRange(float MinValue, float MaxValue) const;

@@ -209,6 +209,33 @@ struct PROJECTNOVA_API FPNRepInventoryItemEntry
 };
 
 USTRUCT(BlueprintType)
+struct PROJECTNOVA_API FPNInventoryQuickSlotEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Quick Slot")
+	int32 SlotIndex = INDEX_NONE;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Quick Slot")
+	FPNRepItemInstanceData InstanceData;
+
+	bool IsValidSlot() const
+	{
+		return SlotIndex != INDEX_NONE;
+	}
+
+	bool IsOccupied() const
+	{
+		return IsValidSlot() && InstanceData.IsValid();
+	}
+
+	bool IsEmpty() const
+	{
+		return !IsOccupied();
+	}
+};
+
+USTRUCT(BlueprintType)
 struct PROJECTNOVA_API FPNInventorySettings
 {
 	GENERATED_BODY()

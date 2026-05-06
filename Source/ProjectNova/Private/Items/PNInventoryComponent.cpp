@@ -32,6 +32,7 @@ void UPNInventoryComponent::BeginPlay()
 
 	if (HasInventoryAuthority())
 	{
+		InitializeQuickSlots();
 		SyncReplicatedItemsFromRuntime();
 	}
 }
@@ -42,6 +43,8 @@ void UPNInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 
 	DOREPLIFETIME(UPNInventoryComponent, Settings);
 	DOREPLIFETIME(UPNInventoryComponent, ReplicatedItems);
+	DOREPLIFETIME(UPNInventoryComponent, QuickSlotCount);
+	DOREPLIFETIME(UPNInventoryComponent, QuickSlots);
 }
 
 void UPNInventoryComponent::InitializeInventory(const FPNInventorySettings& InSettings)
@@ -539,10 +542,11 @@ FString UPNInventoryComponent::GetInventoryDebugString() const
 		: TEXT("NoOwner");
 
 	FString Result = FString::Printf(
-		TEXT("[%s] InventoryComponent: %s\nItems: %d | Weight: %.2f / %.2f"),
+		TEXT("[%s] InventoryComponent: %s\nItems: %d | QuickSlots: %d | Weight: %.2f / %.2f"),
 		*NetSide,
 		*OwnerName,
 		Items.Num(),
+		QuickSlots.Num(),
 		GetCurrentWeight(),
 		GetMaxWeight()
 	);
@@ -555,7 +559,7 @@ FString UPNInventoryComponent::GetInventoryDebugString() const
 		if (!ItemInstance || !ItemInstance->GetItemData())
 		{
 			Result += FString::Printf(
-				TEXT("\n[%d] Invalid Item Pos(%d,%d)"),
+				TEXT("\nINV [%d] Invalid Item Pos(%d,%d)"),
 				Index,
 				Entry.Position.X,
 				Entry.Position.Y
@@ -571,7 +575,7 @@ FString UPNInventoryComponent::GetInventoryDebugString() const
 			: ItemData->GetItemName().ToString();
 
 		Result += FString::Printf(
-			TEXT("\n[%d] %s x%d Pos(%d,%d) Size(%dx%d) Rot:%s Dur:%.1f Bat:%.1f Exp:%.1f Ammo:%d"),
+			TEXT("\nINV [%d] %s x%d Pos(%d,%d) Size(%dx%d) Rot:%s Dur:%.1f Bat:%.1f Exp:%.1f Ammo:%d"),
 			Index,
 			*ItemName,
 			ItemInstance->Quantity,
@@ -584,6 +588,26 @@ FString UPNInventoryComponent::GetInventoryDebugString() const
 			ItemInstance->CurrentBatteryCharge,
 			ItemInstance->RemainingShelfLifeSeconds,
 			ItemInstance->AmmoInMagazine
+		);
+	}
+
+	for (const FPNInventoryQuickSlotEntry& QuickSlot : QuickSlots)
+	{
+		const UPNItemDataAsset* ItemData = QuickSlot.InstanceData.ItemData;
+
+		const FString ItemName = ItemData
+			? (ItemData->GetItemName().IsEmpty() ? ItemData->GetItemId().ToString() : ItemData->GetItemName().ToString())
+			: TEXT("Empty");
+
+		Result += FString::Printf(
+			TEXT("\nQS [%d] %s x%d Dur:%.1f Bat:%.1f Exp:%.1f Ammo:%d"),
+			QuickSlot.SlotIndex,
+			*ItemName,
+			QuickSlot.InstanceData.Quantity,
+			QuickSlot.InstanceData.CurrentDurability,
+			QuickSlot.InstanceData.CurrentBatteryCharge,
+			QuickSlot.InstanceData.RemainingShelfLifeSeconds,
+			QuickSlot.InstanceData.AmmoInMagazine
 		);
 	}
 
@@ -635,6 +659,14 @@ float UPNInventoryComponent::GetCurrentWeight() const
 		if (Entry.ItemInstance)
 		{
 			TotalWeight += Entry.ItemInstance->GetTotalWeight();
+		}
+	}
+
+	for (const FPNInventoryQuickSlotEntry& QuickSlot : QuickSlots)
+	{
+		if (QuickSlot.InstanceData.IsValid() && QuickSlot.InstanceData.ItemData)
+		{
+			TotalWeight += QuickSlot.InstanceData.ItemData->GetTotalWeightForCount(QuickSlot.InstanceData.Quantity);
 		}
 	}
 
@@ -1160,4 +1192,421 @@ void UPNInventoryComponent::BroadcastInventoryChanged()
 	{
 		PrintInventoryDebug();
 	}
+}
+
+void UPNInventoryComponent::InitializeQuickSlots()
+{
+	if (!HasInventoryAuthority())
+	{
+		return;
+	}
+
+	QuickSlotCount = FMath::Clamp(QuickSlotCount, 1, 12);
+	BuildDefaultQuickSlots();
+
+	BroadcastInventoryChanged();
+}
+
+FPNInventoryAddItemResult UPNInventoryComponent::AddItemToQuickSlot(UPNItemInstance* ItemInstance, int32 SlotIndex)
+{
+	FPNInventoryAddItemResult Result;
+	Result.Result = EPNInventoryOperationResult::UnknownError;
+
+	if (!HasInventoryAuthority())
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidInventory;
+		return Result;
+	}
+
+	if (!IsValidQuickSlotIndex(SlotIndex))
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidSlot;
+		return Result;
+	}
+
+	if (IsQuickSlotOccupied(SlotIndex))
+	{
+		Result.Result = EPNInventoryOperationResult::SlotOccupied;
+		return Result;
+	}
+
+	if (!ItemInstance || !ItemInstance->IsValidItem() || !ItemInstance->GetItemData())
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidItem;
+		return Result;
+	}
+
+	if (!CanPlaceItemDataIntoQuickSlot(ItemInstance->GetItemData()))
+	{
+		Result.Result = EPNInventoryOperationResult::ItemTypeNotAllowed;
+		return Result;
+	}
+
+	if (!CanFitWeight(ItemInstance, ItemInstance->Quantity))
+	{
+		Result.Result = EPNInventoryOperationResult::OverWeight;
+		return Result;
+	}
+
+	FPNRepItemInstanceData SlotData = ItemInstance->ToRepData();
+	if (!SlotData.IsValid())
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidItem;
+		return Result;
+	}
+
+	SetQuickSlotDataInternal(SlotIndex, SlotData);
+
+	Result.bSuccess = true;
+	Result.Result = EPNInventoryOperationResult::Success;
+	Result.Position.X = SlotIndex;
+	Result.Position.Y = -1;
+	Result.AddedQuantity = SlotData.Quantity;
+	Result.RemainingQuantity = 0;
+	Result.TargetItemInstance = ItemInstance;
+
+	BroadcastInventoryChanged();
+
+	return Result;
+}
+
+FPNInventoryAddItemResult UPNInventoryComponent::MoveItemFromInventoryToQuickSlot(FPNInventoryGridPosition InventoryPosition, int32 SlotIndex)
+{
+	FPNInventoryAddItemResult Result;
+	Result.Result = EPNInventoryOperationResult::UnknownError;
+
+	if (!HasInventoryAuthority())
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidInventory;
+		return Result;
+	}
+
+	if (!IsValidQuickSlotIndex(SlotIndex))
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidSlot;
+		return Result;
+	}
+
+	if (IsQuickSlotOccupied(SlotIndex))
+	{
+		Result.Result = EPNInventoryOperationResult::SlotOccupied;
+		return Result;
+	}
+
+	UPNItemInstance* SourceItem = GetItemAtPosition(InventoryPosition);
+	if (!SourceItem || !SourceItem->IsValidItem() || !SourceItem->GetItemData())
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidItem;
+		return Result;
+	}
+
+	if (!CanPlaceItemDataIntoQuickSlot(SourceItem->GetItemData()))
+	{
+		Result.Result = EPNInventoryOperationResult::ItemTypeNotAllowed;
+		return Result;
+	}
+
+	const int32 QuantityToMove = FMath::Max(1, SourceItem->Quantity);
+
+	FPNInventoryRemoveItemResult RemoveResult = RemoveItemAtPosition(InventoryPosition, QuantityToMove);
+	if (!RemoveResult.bSuccess || !RemoveResult.RemovedItemInstance || !RemoveResult.RemovedItemInstance->IsValidItem())
+	{
+		Result.Result = RemoveResult.Result;
+		return Result;
+	}
+
+	FPNRepItemInstanceData SlotData = RemoveResult.RemovedItemInstance->ToRepData();
+	if (!SlotData.IsValid())
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidItem;
+		return Result;
+	}
+
+	SetQuickSlotDataInternal(SlotIndex, SlotData);
+
+	Result.bSuccess = true;
+	Result.Result = EPNInventoryOperationResult::Success;
+	Result.Position.X = SlotIndex;
+	Result.Position.Y = -1;
+	Result.AddedQuantity = SlotData.Quantity;
+	Result.RemainingQuantity = 0;
+	Result.TargetItemInstance = RemoveResult.RemovedItemInstance;
+
+	BroadcastInventoryChanged();
+
+	return Result;
+}
+
+FPNInventoryAddItemResult UPNInventoryComponent::MoveQuickSlotToInventory(int32 SlotIndex)
+{
+	FPNInventoryAddItemResult Result;
+	Result.Result = EPNInventoryOperationResult::UnknownError;
+
+	if (!HasInventoryAuthority())
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidInventory;
+		return Result;
+	}
+
+	if (!IsValidQuickSlotIndex(SlotIndex))
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidSlot;
+		return Result;
+	}
+
+	const int32 SlotArrayIndex = FindQuickSlotArrayIndex(SlotIndex);
+	if (!QuickSlots.IsValidIndex(SlotArrayIndex) || QuickSlots[SlotArrayIndex].IsEmpty())
+	{
+		Result.Result = EPNInventoryOperationResult::SlotEmpty;
+		return Result;
+	}
+
+	const FPNRepItemInstanceData OriginalSlotData = QuickSlots[SlotArrayIndex].InstanceData;
+
+	UPNItemInstance* ItemInstance = NewObject<UPNItemInstance>(this);
+	if (!ItemInstance)
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidItem;
+		return Result;
+	}
+
+	ItemInstance->InitializeFromRepData(OriginalSlotData);
+	if (!ItemInstance->IsValidItem())
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidItem;
+		return Result;
+	}
+
+	ClearQuickSlotDataInternal(SlotIndex);
+
+	Result = AddItem(ItemInstance, true, true);
+
+	if (!Result.bSuccess || Result.RemainingQuantity > 0)
+	{
+		FPNRepItemInstanceData RemainingData = OriginalSlotData;
+		RemainingData.Quantity = FMath::Max(1, Result.RemainingQuantity);
+		SetQuickSlotDataInternal(SlotIndex, RemainingData);
+	}
+
+	BroadcastInventoryChanged();
+
+	return Result;
+}
+
+FPNInventoryRemoveItemResult UPNInventoryComponent::RemoveItemFromQuickSlot(int32 SlotIndex, int32 QuantityToRemove)
+{
+	FPNInventoryRemoveItemResult Result;
+	Result.Result = EPNInventoryOperationResult::UnknownError;
+
+	if (!HasInventoryAuthority())
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidInventory;
+		return Result;
+	}
+
+	if (!IsValidQuickSlotIndex(SlotIndex))
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidSlot;
+		return Result;
+	}
+
+	if (QuantityToRemove <= 0)
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidQuantity;
+		return Result;
+	}
+
+	const int32 SlotArrayIndex = FindQuickSlotArrayIndex(SlotIndex);
+	if (!QuickSlots.IsValidIndex(SlotArrayIndex) || QuickSlots[SlotArrayIndex].IsEmpty())
+	{
+		Result.Result = EPNInventoryOperationResult::SlotEmpty;
+		return Result;
+	}
+
+	FPNInventoryQuickSlotEntry& SlotEntry = QuickSlots[SlotArrayIndex];
+
+	const int32 RemovedQuantity = FMath::Min(SlotEntry.InstanceData.Quantity, QuantityToRemove);
+	if (RemovedQuantity <= 0)
+	{
+		Result.Result = EPNInventoryOperationResult::NotEnoughQuantity;
+		return Result;
+	}
+
+	FPNRepItemInstanceData RemovedData = SlotEntry.InstanceData;
+	RemovedData.Quantity = RemovedQuantity;
+
+	UPNItemInstance* RemovedInstance = NewObject<UPNItemInstance>(this);
+	if (!RemovedInstance)
+	{
+		Result.Result = EPNInventoryOperationResult::InvalidItem;
+		return Result;
+	}
+
+	RemovedInstance->InitializeFromRepData(RemovedData);
+
+	SlotEntry.InstanceData.Quantity -= RemovedQuantity;
+
+	if (SlotEntry.InstanceData.Quantity <= 0)
+	{
+		ClearQuickSlotDataInternal(SlotIndex);
+	}
+
+	Result.bSuccess = true;
+	Result.Result = EPNInventoryOperationResult::Success;
+	Result.RemovedQuantity = RemovedQuantity;
+	Result.RemovedItemInstance = RemovedInstance;
+
+	BroadcastInventoryChanged();
+
+	return Result;
+}
+
+void UPNInventoryComponent::ClearQuickSlot(int32 SlotIndex)
+{
+	if (!HasInventoryAuthority())
+	{
+		return;
+	}
+
+	if (!IsValidQuickSlotIndex(SlotIndex))
+	{
+		return;
+	}
+
+	ClearQuickSlotDataInternal(SlotIndex);
+	BroadcastInventoryChanged();
+}
+
+bool UPNInventoryComponent::IsValidQuickSlotIndex(int32 SlotIndex) const
+{
+	return SlotIndex >= 0 && SlotIndex < FMath::Clamp(QuickSlotCount, 1, 12);
+}
+
+bool UPNInventoryComponent::IsQuickSlotOccupied(int32 SlotIndex) const
+{
+	const int32 SlotArrayIndex = FindQuickSlotArrayIndex(SlotIndex);
+	if (!QuickSlots.IsValidIndex(SlotArrayIndex))
+	{
+		return false;
+	}
+
+	return QuickSlots[SlotArrayIndex].IsOccupied();
+}
+
+bool UPNInventoryComponent::CanPlaceItemDataIntoQuickSlot(UPNItemDataAsset* ItemData) const
+{
+	if (!ItemData)
+	{
+		return false;
+	}
+
+	return ItemData->ItemType == EPNItemType::IT_Consumables
+		|| ItemData->ItemType == EPNItemType::IT_Items
+		|| ItemData->ItemType == EPNItemType::IT_Builds;
+}
+
+FPNInventoryQuickSlotEntry UPNInventoryComponent::GetQuickSlotEntry(int32 SlotIndex) const
+{
+	const int32 SlotArrayIndex = FindQuickSlotArrayIndex(SlotIndex);
+
+	if (!QuickSlots.IsValidIndex(SlotArrayIndex))
+	{
+		FPNInventoryQuickSlotEntry EmptyEntry;
+		EmptyEntry.SlotIndex = SlotIndex;
+		return EmptyEntry;
+	}
+
+	return QuickSlots[SlotArrayIndex];
+}
+
+UPNItemDataAsset* UPNInventoryComponent::GetQuickSlotItemData(int32 SlotIndex) const
+{
+	const FPNInventoryQuickSlotEntry SlotEntry = GetQuickSlotEntry(SlotIndex);
+	return SlotEntry.InstanceData.ItemData;
+}
+
+const TArray<FPNInventoryQuickSlotEntry>& UPNInventoryComponent::GetQuickSlots() const
+{
+	return QuickSlots;
+}
+
+void UPNInventoryComponent::OnRep_QuickSlots()
+{
+	BuildDefaultQuickSlots();
+
+	OnInventoryChanged.Broadcast();
+
+	if (bDebugInventoryReplication)
+	{
+		PrintInventoryDebug();
+	}
+}
+
+void UPNInventoryComponent::BuildDefaultQuickSlots()
+{
+	QuickSlotCount = FMath::Clamp(QuickSlotCount, 1, 12);
+
+	for (int32 Index = 0; Index < QuickSlotCount; ++Index)
+	{
+		FindOrCreateQuickSlotArrayIndex(Index);
+	}
+
+	QuickSlots.Sort([](const FPNInventoryQuickSlotEntry& A, const FPNInventoryQuickSlotEntry& B)
+	{
+		return A.SlotIndex < B.SlotIndex;
+	});
+}
+
+int32 UPNInventoryComponent::FindQuickSlotArrayIndex(int32 SlotIndex) const
+{
+	for (int32 Index = 0; Index < QuickSlots.Num(); ++Index)
+	{
+		if (QuickSlots[Index].SlotIndex == SlotIndex)
+		{
+			return Index;
+		}
+	}
+
+	return INDEX_NONE;
+}
+
+int32 UPNInventoryComponent::FindOrCreateQuickSlotArrayIndex(int32 SlotIndex)
+{
+	if (!IsValidQuickSlotIndex(SlotIndex))
+	{
+		return INDEX_NONE;
+	}
+
+	const int32 ExistingIndex = FindQuickSlotArrayIndex(SlotIndex);
+	if (ExistingIndex != INDEX_NONE)
+	{
+		return ExistingIndex;
+	}
+
+	FPNInventoryQuickSlotEntry NewEntry;
+	NewEntry.SlotIndex = SlotIndex;
+
+	return QuickSlots.Add(NewEntry);
+}
+
+void UPNInventoryComponent::SetQuickSlotDataInternal(int32 SlotIndex, const FPNRepItemInstanceData& InstanceData)
+{
+	const int32 SlotArrayIndex = FindOrCreateQuickSlotArrayIndex(SlotIndex);
+	if (!QuickSlots.IsValidIndex(SlotArrayIndex))
+	{
+		return;
+	}
+
+	QuickSlots[SlotArrayIndex].InstanceData = InstanceData;
+}
+
+void UPNInventoryComponent::ClearQuickSlotDataInternal(int32 SlotIndex)
+{
+	const int32 SlotArrayIndex = FindQuickSlotArrayIndex(SlotIndex);
+	if (!QuickSlots.IsValidIndex(SlotArrayIndex))
+	{
+		return;
+	}
+
+	QuickSlots[SlotArrayIndex].InstanceData = FPNRepItemInstanceData();
 }
