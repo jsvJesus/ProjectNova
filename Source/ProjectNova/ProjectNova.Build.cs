@@ -12,7 +12,10 @@ public class ProjectNova : ModuleRules
 			"Engine", 
 			"InputCore", 
 			"EnhancedInput",
-			"ProceduralMeshComponent"
+			"ProceduralMeshComponent",
+			"UMG",
+			"Slate",
+			"SlateCore"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {
