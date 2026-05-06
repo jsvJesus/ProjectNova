@@ -1,9 +1,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "PNInventoryContainerActor.h"
+#include "Inventory/PNInventoryContainerActor.h"
 #include "PNLootContainerActor.generated.h"
 
+class UPNLootContainerProfileDataAsset;
 class UPNLootTableDataAsset;
 
 UCLASS()
@@ -15,10 +16,20 @@ public:
 	APNLootContainerActor();
 
 protected:
+	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot Container|Profile")
+	TObjectPtr<UPNLootContainerProfileDataAsset> ContainerProfile = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot Container|Profile")
+	bool bApplyProfileOnConstruction = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot Container|Profile")
+	bool bApplyProfileOnBeginPlay = true;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot Container|Loot Table")
 	TObjectPtr<UPNLootTableDataAsset> LootTable = nullptr;
 
@@ -47,6 +58,12 @@ public:
 	bool bCanOpenEmptyLootContainer = false;
 
 public:
+	UFUNCTION(BlueprintCallable, Category = "Loot Container|Profile")
+	bool ApplyContainerProfile(bool bReinitializeInventory = false);
+
+	UFUNCTION(BlueprintPure, Category = "Loot Container|Profile")
+	UPNLootContainerProfileDataAsset* GetContainerProfile() const;
+
 	UFUNCTION(BlueprintPure, Category = "Loot Container")
 	bool HasLootItems() const;
 

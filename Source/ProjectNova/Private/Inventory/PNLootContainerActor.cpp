@@ -1,6 +1,8 @@
 #include "Inventory/PNLootContainerActor.h"
 
+#include "Components/StaticMeshComponent.h"
 #include "Inventory/PNInventoryComponent.h"
+#include "Inventory/PNLootContainerProfileDataAsset.h"
 #include "Inventory/PNLootTableDataAsset.h"
 #include "Items/PNItemInstance.h"
 #include "Net/UnrealNetwork.h"
@@ -21,16 +23,30 @@ APNLootContainerActor::APNLootContainerActor()
 	ContainerSettings.bAllowItemRotation = true;
 	ContainerSettings.bAllowStacking = true;
 
-	// Лут-контейнер только отдаёт предметы.
-	// Игрок не может положить предмет внутрь мешка/сундука/стеллажа/холодильника.
+	// LootContainer только отдаёт предметы.
 	ContainerSettings.bCanReceiveItems = false;
 	ContainerSettings.bCanRemoveItems = true;
 	ContainerSettings.bCanDropItems = false;
 	ContainerSettings.bCanTradeItems = false;
 }
 
+void APNLootContainerActor::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+
+	if (bApplyProfileOnConstruction)
+	{
+		ApplyContainerProfile(false);
+	}
+}
+
 void APNLootContainerActor::BeginPlay()
 {
+	if (bApplyProfileOnBeginPlay)
+	{
+		ApplyContainerProfile(false);
+	}
+
 	Super::BeginPlay();
 
 	if (InventoryComponent)
@@ -54,6 +70,61 @@ void APNLootContainerActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(APNLootContainerActor, bLootRespawnBlocked);
+}
+
+bool APNLootContainerActor::ApplyContainerProfile(bool bReinitializeInventory)
+{
+	if (!ContainerProfile)
+	{
+		return false;
+	}
+
+	ContainerType = EPNInventoryType::LootContainer;
+
+	DisplayName = ContainerProfile->DisplayName.IsEmpty()
+		? FText::FromString(TEXT("Loot Container"))
+		: ContainerProfile->DisplayName;
+
+	ActionText = ContainerProfile->ActionText.IsEmpty()
+		? FText::FromString(TEXT("Open"))
+		: ContainerProfile->ActionText;
+
+	ContainerSettings = ContainerProfile->ContainerSettings;
+	ContainerSettings.InventoryType = EPNInventoryType::LootContainer;
+
+	// Жёсткое правило для LootContainer:
+	// игрок может только забирать, но не может складывать предметы внутрь.
+	ContainerSettings.bCanReceiveItems = false;
+	ContainerSettings.bCanRemoveItems = true;
+	ContainerSettings.bCanDropItems = false;
+	ContainerSettings.bCanTradeItems = false;
+
+	LootTable = ContainerProfile->LootTable;
+
+	bSpawnLootOnBeginPlay = ContainerProfile->RespawnProfile.bSpawnLootOnBeginPlay;
+	bClearInventoryBeforeLootRespawn = ContainerProfile->RespawnProfile.bClearInventoryBeforeLootRespawn;
+	bRespawnWhenEmpty = ContainerProfile->RespawnProfile.bRespawnWhenEmpty;
+	LootRespawnSeconds = ContainerProfile->RespawnProfile.LootRespawnSeconds;
+	bCanOpenEmptyLootContainer = ContainerProfile->RespawnProfile.bCanOpenEmptyLootContainer;
+	bUseFixedLootSeed = ContainerProfile->RespawnProfile.bUseFixedLootSeed;
+	FixedLootSeed = ContainerProfile->RespawnProfile.FixedLootSeed;
+
+	if (MeshComponent && ContainerProfile->ContainerMesh)
+	{
+		MeshComponent->SetStaticMesh(ContainerProfile->ContainerMesh);
+	}
+
+	if (bReinitializeInventory && HasAuthority() && InventoryComponent)
+	{
+		InventoryComponent->InitializeInventory(ContainerSettings);
+	}
+
+	return true;
+}
+
+UPNLootContainerProfileDataAsset* APNLootContainerActor::GetContainerProfile() const
+{
+	return ContainerProfile;
 }
 
 bool APNLootContainerActor::HasLootItems() const
