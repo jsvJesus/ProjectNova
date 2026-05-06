@@ -7,6 +7,7 @@
 
 class UPNItemDataAsset;
 class UPNItemInstance;
+class UPNCharacterStatsComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPNInventoryChangedSignature);
 
@@ -171,6 +172,30 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Inventory|Quick Slots")
 	const TArray<FPNInventoryQuickSlotEntry>& GetQuickSlots() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Use Item")
+	FPNInventoryUseItemResponse UseItemFromInventoryPosition(FPNInventoryGridPosition InventoryPosition);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Use Item")
+	FPNInventoryUseItemResponse UseItemFromQuickSlot(int32 SlotIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Use Item")
+	void RequestUseItemFromInventoryPosition(FPNInventoryGridPosition InventoryPosition);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Use Item")
+	void RequestUseItemFromQuickSlot(int32 SlotIndex);
+
+	UFUNCTION(Server, Reliable)
+	void Server_UseItemFromInventoryPosition(FPNInventoryGridPosition InventoryPosition);
+
+	UFUNCTION(Server, Reliable)
+	void Server_UseItemFromQuickSlot(int32 SlotIndex);
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Use Item")
+	bool CanUseItemData(UPNItemDataAsset* ItemData) const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Use Item")
+	bool IsConsumableItemData(UPNItemDataAsset* ItemData) const;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Debug")
 	bool bDebugInventoryReplication = true;
 
@@ -221,4 +246,11 @@ protected:
 
 	void SetQuickSlotDataInternal(int32 SlotIndex, const FPNRepItemInstanceData& InstanceData);
 	void ClearQuickSlotDataInternal(int32 SlotIndex);
+
+	UPNCharacterStatsComponent* GetOwnerCharacterStatsComponent() const;
+
+	bool ApplyConsumableEffects(const FPNRepItemInstanceData& InstanceData);
+	float RollStatRange(float MinValue, float MaxValue) const;
+
+	EPNInventoryUseItemResult ConvertRemoveResultToUseResult(EPNInventoryOperationResult RemoveResult) const;
 };

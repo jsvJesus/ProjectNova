@@ -3,6 +3,7 @@
 #include "Items/PNItemInstance.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/Engine.h"
+#include "Stats/PNCharacterStatsComponent.h"
 
 UPNInventoryComponent::UPNInventoryComponent()
 {
@@ -420,6 +421,358 @@ void UPNInventoryComponent::RequestMoveItemFromPosition(FPNInventoryGridPosition
 void UPNInventoryComponent::Server_MoveItemFromPosition_Implementation(FPNInventoryGridPosition OldPosition, FPNInventoryGridPosition NewPosition, bool bRotated)
 {
 	MoveItemFromPosition(OldPosition, NewPosition, bRotated);
+}
+
+FPNInventoryUseItemResponse UPNInventoryComponent::UseItemFromInventoryPosition(FPNInventoryGridPosition InventoryPosition)
+{
+	FPNInventoryUseItemResponse Response;
+	Response.InventoryPosition = InventoryPosition;
+	Response.Result = EPNInventoryUseItemResult::UnknownError;
+
+	if (!HasInventoryAuthority())
+	{
+		Response.Result = EPNInventoryUseItemResult::InvalidInventory;
+		return Response;
+	}
+
+	UPNCharacterStatsComponent* StatsComponent = GetOwnerCharacterStatsComponent();
+	if (!StatsComponent)
+	{
+		Response.Result = EPNInventoryUseItemResult::InvalidStatsComponent;
+		return Response;
+	}
+
+	UPNItemInstance* SourceItem = GetItemAtPosition(InventoryPosition);
+	if (!SourceItem || !SourceItem->IsValidItem())
+	{
+		Response.Result = EPNInventoryUseItemResult::SlotEmpty;
+		return Response;
+	}
+
+	UPNItemDataAsset* ItemData = SourceItem->GetItemData();
+	if (!ItemData)
+	{
+		Response.Result = EPNInventoryUseItemResult::InvalidItem;
+		return Response;
+	}
+
+	if (!CanUseItemData(ItemData))
+	{
+		Response.Result = EPNInventoryUseItemResult::ItemNotUsable;
+		return Response;
+	}
+
+	if (!IsConsumableItemData(ItemData))
+	{
+		Response.Result = EPNInventoryUseItemResult::ItemNotConsumable;
+		return Response;
+	}
+
+	FPNRepItemInstanceData UseData = SourceItem->ToRepData();
+
+	if (!ApplyConsumableEffects(UseData))
+	{
+		Response.Result = EPNInventoryUseItemResult::InvalidItem;
+		return Response;
+	}
+
+	FPNInventoryRemoveItemResult RemoveResult = RemoveItemAtPosition(InventoryPosition, 1);
+	if (!RemoveResult.bSuccess)
+	{
+		Response.Result = ConvertRemoveResultToUseResult(RemoveResult.Result);
+		return Response;
+	}
+
+	Response.bSuccess = true;
+	Response.Result = EPNInventoryUseItemResult::Success;
+	Response.ItemData = ItemData;
+	Response.UsedQuantity = RemoveResult.RemovedQuantity;
+
+	BroadcastInventoryChanged();
+
+	return Response;
+}
+
+FPNInventoryUseItemResponse UPNInventoryComponent::UseItemFromQuickSlot(int32 SlotIndex)
+{
+	FPNInventoryUseItemResponse Response;
+	Response.QuickSlotIndex = SlotIndex;
+	Response.Result = EPNInventoryUseItemResult::UnknownError;
+
+	if (!HasInventoryAuthority())
+	{
+		Response.Result = EPNInventoryUseItemResult::InvalidInventory;
+		return Response;
+	}
+
+	UPNCharacterStatsComponent* StatsComponent = GetOwnerCharacterStatsComponent();
+	if (!StatsComponent)
+	{
+		Response.Result = EPNInventoryUseItemResult::InvalidStatsComponent;
+		return Response;
+	}
+
+	if (!IsValidQuickSlotIndex(SlotIndex))
+	{
+		Response.Result = EPNInventoryUseItemResult::InvalidSlot;
+		return Response;
+	}
+
+	const FPNInventoryQuickSlotEntry SlotEntry = GetQuickSlotEntry(SlotIndex);
+	if (SlotEntry.IsEmpty())
+	{
+		Response.Result = EPNInventoryUseItemResult::SlotEmpty;
+		return Response;
+	}
+
+	UPNItemDataAsset* ItemData = SlotEntry.InstanceData.ItemData;
+	if (!ItemData)
+	{
+		Response.Result = EPNInventoryUseItemResult::InvalidItem;
+		return Response;
+	}
+
+	if (!CanUseItemData(ItemData))
+	{
+		Response.Result = EPNInventoryUseItemResult::ItemNotUsable;
+		return Response;
+	}
+
+	if (!IsConsumableItemData(ItemData))
+	{
+		Response.Result = EPNInventoryUseItemResult::ItemNotConsumable;
+		return Response;
+	}
+
+	const FPNRepItemInstanceData UseData = SlotEntry.InstanceData;
+
+	if (!ApplyConsumableEffects(UseData))
+	{
+		Response.Result = EPNInventoryUseItemResult::InvalidItem;
+		return Response;
+	}
+
+	FPNInventoryRemoveItemResult RemoveResult = RemoveItemFromQuickSlot(SlotIndex, 1);
+	if (!RemoveResult.bSuccess)
+	{
+		Response.Result = ConvertRemoveResultToUseResult(RemoveResult.Result);
+		return Response;
+	}
+
+	Response.bSuccess = true;
+	Response.Result = EPNInventoryUseItemResult::Success;
+	Response.ItemData = ItemData;
+	Response.UsedQuantity = RemoveResult.RemovedQuantity;
+
+	BroadcastInventoryChanged();
+
+	return Response;
+}
+
+void UPNInventoryComponent::RequestUseItemFromInventoryPosition(FPNInventoryGridPosition InventoryPosition)
+{
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor)
+	{
+		return;
+	}
+
+	if (OwnerActor->HasAuthority())
+	{
+		UseItemFromInventoryPosition(InventoryPosition);
+		return;
+	}
+
+	Server_UseItemFromInventoryPosition(InventoryPosition);
+}
+
+void UPNInventoryComponent::RequestUseItemFromQuickSlot(int32 SlotIndex)
+{
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor)
+	{
+		return;
+	}
+
+	if (OwnerActor->HasAuthority())
+	{
+		UseItemFromQuickSlot(SlotIndex);
+		return;
+	}
+
+	Server_UseItemFromQuickSlot(SlotIndex);
+}
+
+void UPNInventoryComponent::Server_UseItemFromInventoryPosition_Implementation(FPNInventoryGridPosition InventoryPosition)
+{
+	UseItemFromInventoryPosition(InventoryPosition);
+}
+
+void UPNInventoryComponent::Server_UseItemFromQuickSlot_Implementation(int32 SlotIndex)
+{
+	UseItemFromQuickSlot(SlotIndex);
+}
+
+bool UPNInventoryComponent::CanUseItemData(UPNItemDataAsset* ItemData) const
+{
+	if (!ItemData)
+	{
+		return false;
+	}
+
+	if (ItemData->ItemType == EPNItemType::IT_Consumables)
+	{
+		return true;
+	}
+
+	if (ItemData->ItemType == EPNItemType::IT_Items && ItemData->ItemCategory == EPNItemCategory::Usable)
+	{
+		return true;
+	}
+
+	if (ItemData->ItemType == EPNItemType::IT_Builds)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool UPNInventoryComponent::IsConsumableItemData(UPNItemDataAsset* ItemData) const
+{
+	return ItemData && ItemData->ItemType == EPNItemType::IT_Consumables;
+}
+
+UPNCharacterStatsComponent* UPNInventoryComponent::GetOwnerCharacterStatsComponent() const
+{
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor)
+	{
+		return nullptr;
+	}
+
+	return OwnerActor->FindComponentByClass<UPNCharacterStatsComponent>();
+}
+
+bool UPNInventoryComponent::ApplyConsumableEffects(const FPNRepItemInstanceData& InstanceData)
+{
+	UPNItemDataAsset* ItemData = InstanceData.ItemData;
+	if (!IsConsumableItemData(ItemData))
+	{
+		return false;
+	}
+
+	UPNCharacterStatsComponent* StatsComponent = GetOwnerCharacterStatsComponent();
+	if (!StatsComponent)
+	{
+		return false;
+	}
+
+	const FPNConsumableStats& ConsumableStats = ItemData->ConsumableStats;
+
+	const float HealthDelta = RollStatRange(ConsumableStats.HealthMin, ConsumableStats.HealthMax);
+	const float FoodDelta = RollStatRange(ConsumableStats.FoodMin, ConsumableStats.FoodMax);
+	const float WaterDelta = RollStatRange(ConsumableStats.WaterMin, ConsumableStats.WaterMax);
+	const float StaminaDelta = RollStatRange(ConsumableStats.StaminaMin, ConsumableStats.StaminaMax);
+
+	if (HealthDelta > 0.0f)
+	{
+		StatsComponent->Heal(HealthDelta);
+	}
+	else if (HealthDelta < 0.0f)
+	{
+		StatsComponent->ApplyDamage(-HealthDelta, nullptr, GetOwner());
+	}
+
+	if (!FMath::IsNearlyZero(FoodDelta))
+	{
+		StatsComponent->AddHunger(FoodDelta);
+	}
+
+	if (!FMath::IsNearlyZero(WaterDelta))
+	{
+		StatsComponent->AddThirst(WaterDelta);
+	}
+
+	if (StaminaDelta > 0.0f)
+	{
+		StatsComponent->RestoreStamina(StaminaDelta);
+	}
+	else if (StaminaDelta < 0.0f)
+	{
+		StatsComponent->ConsumeStamina(-StaminaDelta);
+	}
+
+	if (!FMath::IsNearlyZero(ConsumableStats.Toxicity))
+	{
+		StatsComponent->AddToxicity(ConsumableStats.Toxicity);
+	}
+
+	if (ConsumableStats.CureToxicity > 0.0f)
+	{
+		StatsComponent->AddToxicity(-ConsumableStats.CureToxicity);
+	}
+
+	if (ConsumableStats.CurePsi > 0.0f)
+	{
+		StatsComponent->AddPsy(-ConsumableStats.CurePsi);
+	}
+
+	if (ConsumableStats.CureRadiation > 0.0f)
+	{
+		StatsComponent->AddRadiation(-ConsumableStats.CureRadiation);
+	}
+
+	if (ConsumableStats.CureBleeding > 0.0f)
+	{
+		StatsComponent->AddBleeding(-ConsumableStats.CureBleeding);
+	}
+
+	if (ItemData->Expiration.bUsesExpiration
+		&& InstanceData.RemainingShelfLifeSeconds <= 0.0f
+		&& ItemData->Expiration.ToxicityWhenExpired > 0.0f)
+	{
+		StatsComponent->AddToxicity(ItemData->Expiration.ToxicityWhenExpired);
+	}
+
+	return true;
+}
+
+float UPNInventoryComponent::RollStatRange(float MinValue, float MaxValue) const
+{
+	if (FMath::IsNearlyEqual(MinValue, MaxValue))
+	{
+		return MinValue;
+	}
+
+	const float ActualMin = FMath::Min(MinValue, MaxValue);
+	const float ActualMax = FMath::Max(MinValue, MaxValue);
+
+	return FMath::FRandRange(ActualMin, ActualMax);
+}
+
+EPNInventoryUseItemResult UPNInventoryComponent::ConvertRemoveResultToUseResult(EPNInventoryOperationResult RemoveResult) const
+{
+	switch (RemoveResult)
+	{
+	case EPNInventoryOperationResult::Success:
+		return EPNInventoryUseItemResult::Success;
+
+	case EPNInventoryOperationResult::InvalidInventory:
+		return EPNInventoryUseItemResult::InvalidInventory;
+
+	case EPNInventoryOperationResult::InvalidItem:
+		return EPNInventoryUseItemResult::InvalidItem;
+
+	case EPNInventoryOperationResult::InvalidSlot:
+		return EPNInventoryUseItemResult::InvalidSlot;
+
+	case EPNInventoryOperationResult::SlotEmpty:
+		return EPNInventoryUseItemResult::SlotEmpty;
+
+	default:
+		return EPNInventoryUseItemResult::RemoveFailed;
+	}
 }
 
 FPNInventoryRemoveItemResult UPNInventoryComponent::RemoveItemInstance(UPNItemInstance* ItemInstance, int32 QuantityToRemove)

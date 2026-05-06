@@ -330,3 +330,45 @@ struct PROJECTNOVA_API FPNInventoryRemoveItemResult
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Result")
 	TObjectPtr<UPNItemInstance> RemovedItemInstance = nullptr;
 };
+
+UENUM(BlueprintType)
+enum class EPNInventoryUseItemResult : uint8
+{
+	Success                 UMETA(DisplayName = "Success"),
+
+	InvalidInventory        UMETA(DisplayName = "Invalid Inventory"),
+	InvalidStatsComponent   UMETA(DisplayName = "Invalid Stats Component"),
+	InvalidItem             UMETA(DisplayName = "Invalid Item"),
+	InvalidSlot             UMETA(DisplayName = "Invalid Slot"),
+
+	SlotEmpty               UMETA(DisplayName = "Slot Empty"),
+	ItemNotUsable           UMETA(DisplayName = "Item Not Usable"),
+	ItemNotConsumable       UMETA(DisplayName = "Item Not Consumable"),
+
+	RemoveFailed            UMETA(DisplayName = "Remove Failed"),
+	UnknownError            UMETA(DisplayName = "Unknown Error")
+};
+
+USTRUCT(BlueprintType)
+struct PROJECTNOVA_API FPNInventoryUseItemResponse
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Use Item")
+	bool bSuccess = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Use Item")
+	EPNInventoryUseItemResult Result = EPNInventoryUseItemResult::UnknownError;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Use Item")
+	FPNInventoryGridPosition InventoryPosition;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Use Item")
+	int32 QuickSlotIndex = INDEX_NONE;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Use Item")
+	int32 UsedQuantity = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Use Item")
+	TObjectPtr<UPNItemDataAsset> ItemData = nullptr;
+};
