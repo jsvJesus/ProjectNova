@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Inventory/PNInventoryTypes.h"
 #include "PNBaseCharacter.generated.h"
 
 class UPNInventoryComponent;
