@@ -6,6 +6,7 @@
 
 class UPNInventoryComponent;
 class UPNEquipmentComponent;
+class UPNEquipmentVisualComponent;
 class UPNCharacterStatsComponent;
 class UPNQuickSlotComponent;
 class USkeletalMesh;
@@ -38,6 +39,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UPNEquipmentComponent> EquipmentComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UPNEquipmentVisualComponent> EquipmentVisualComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UPNCharacterStatsComponent> CharacterStatsComponent;
@@ -87,6 +91,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Equipment")
 	UPNEquipmentComponent* GetEquipmentComponent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Equipment")
+	UPNEquipmentVisualComponent* GetEquipmentVisualComponent() const;
 
 	UFUNCTION(BlueprintPure, Category = "Character Stats")
 	UPNCharacterStatsComponent* GetCharacterStatsComponent() const;

@@ -2,6 +2,7 @@
 
 #include "Components/SkeletalMeshComponent.h"
 #include "Equipment/PNEquipmentComponent.h"
+#include "Equipment/PNEquipmentVisualComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Items/PNInventoryComponent.h"
 #include "Items/PNQuickSlotComponent.h"
@@ -25,6 +26,12 @@ APNBaseCharacter::APNBaseCharacter()
 	if (EquipmentComponent)
 	{
 		EquipmentComponent->SetIsReplicated(true);
+	}
+
+	EquipmentVisualComponent = CreateDefaultSubobject<UPNEquipmentVisualComponent>(TEXT("EquipmentVisualComponent"));
+	if (EquipmentVisualComponent)
+	{
+		EquipmentVisualComponent->SetIsReplicated(true);
 	}
 
 	CharacterStatsComponent = CreateDefaultSubobject<UPNCharacterStatsComponent>(TEXT("CharacterStatsComponent"));
@@ -136,6 +143,11 @@ UPNInventoryComponent* APNBaseCharacter::GetInventoryComponent() const
 UPNEquipmentComponent* APNBaseCharacter::GetEquipmentComponent() const
 {
 	return EquipmentComponent;
+}
+
+UPNEquipmentVisualComponent* APNBaseCharacter::GetEquipmentVisualComponent() const
+{
+	return EquipmentVisualComponent;
 }
 
 UPNCharacterStatsComponent* APNBaseCharacter::GetCharacterStatsComponent() const
