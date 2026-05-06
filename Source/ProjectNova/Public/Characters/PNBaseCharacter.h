@@ -10,6 +10,7 @@ class UPNInventoryActionComponent;
 class UPNInventoryContainerComponent;
 class UPNEquipmentComponent;
 class UPNEquipmentVisualComponent;
+class UPNPlayerHUDComponent;
 class UPNCharacterStatsComponent;
 class UPNQuickSlotComponent;
 class USkeletalMesh;
@@ -49,6 +50,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UPNEquipmentComponent> EquipmentComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UPNPlayerHUDComponent> PlayerHUDComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UPNEquipmentVisualComponent> EquipmentVisualComponent;
@@ -122,6 +126,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Inventory")
 	UPNInventoryComponent* GetVestInventoryComponent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Player HUD")
+	UPNPlayerHUDComponent* GetPlayerHUDComponent() const;
 
 	UFUNCTION(BlueprintPure, Category = "Inventory")
 	bool HasActiveBackpackInventory() const;

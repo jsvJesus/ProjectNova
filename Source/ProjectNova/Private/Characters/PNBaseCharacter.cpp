@@ -11,6 +11,7 @@
 #include "Stats/PNCharacterStatsComponent.h"
 #include "Inventory/PNInventoryContainerComponent.h"
 #include "Items/PNItemDataAsset.h"
+#include "UI/PNPlayerHUDComponent.h"
 
 APNBaseCharacter::APNBaseCharacter()
 {
@@ -24,6 +25,8 @@ APNBaseCharacter::APNBaseCharacter()
 	{
 		InventoryComponent->SetIsReplicated(true);
 	}
+
+	PlayerHUDComponent = CreateDefaultSubobject<UPNPlayerHUDComponent>(TEXT("PlayerHUDComponent"));
 
 	BackpackInventoryComponent = CreateDefaultSubobject<UPNInventoryComponent>(TEXT("BackpackInventoryComponent"));
 	if (BackpackInventoryComponent)
@@ -175,6 +178,11 @@ float APNBaseCharacter::TakeDamage(
 UPNInventoryComponent* APNBaseCharacter::GetInventoryComponent() const
 {
 	return InventoryComponent;
+}
+
+UPNPlayerHUDComponent* APNBaseCharacter::GetPlayerHUDComponent() const
+{
+	return PlayerHUDComponent;
 }
 
 UPNInventoryComponent* APNBaseCharacter::GetBackpackInventoryComponent() const
