@@ -1,14 +1,15 @@
 #include "Characters/PNBaseCharacter.h"
 
 #include "Components/SkeletalMeshComponent.h"
-#include "Items/PNInventoryActionComponent.h"
+#include "Inventory/PNInventoryActionComponent.h"
 #include "Equipment/PNEquipmentComponent.h"
 #include "Equipment/PNEquipmentVisualComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "Items/PNInventoryComponent.h"
+#include "Inventory/PNInventoryComponent.h"
 #include "Items/PNQuickSlotComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Stats/PNCharacterStatsComponent.h"
+#include "Inventory/PNInventoryContainerComponent.h"
 
 APNBaseCharacter::APNBaseCharacter()
 {
@@ -51,6 +52,12 @@ APNBaseCharacter::APNBaseCharacter()
 	if (InventoryActionComponent)
 	{
 		InventoryActionComponent->SetIsReplicated(true);
+	}
+
+	InventoryContainerComponent = CreateDefaultSubobject<UPNInventoryContainerComponent>(TEXT("InventoryContainerComponent"));
+	if (InventoryContainerComponent)
+	{
+		InventoryContainerComponent->SetIsReplicated(true);
 	}
 
 	GetMesh()->SetIsReplicated(true);
@@ -150,6 +157,11 @@ UPNInventoryComponent* APNBaseCharacter::GetInventoryComponent() const
 UPNInventoryActionComponent* APNBaseCharacter::GetInventoryActionComponent() const
 {
 	return InventoryActionComponent;
+}
+
+UPNInventoryContainerComponent* APNBaseCharacter::GetInventoryContainerComponent() const
+{
+	return InventoryContainerComponent;
 }
 
 UPNEquipmentComponent* APNBaseCharacter::GetEquipmentComponent() const

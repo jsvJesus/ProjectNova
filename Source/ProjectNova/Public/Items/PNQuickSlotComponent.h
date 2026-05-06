@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Items/PNInventoryTypes.h"
+#include "Inventory/PNInventoryTypes.h"
 #include "Items/PNItemTypes.h"
 #include "Items/PNQuickSlotTypes.h"
 #include "PNQuickSlotComponent.generated.h"

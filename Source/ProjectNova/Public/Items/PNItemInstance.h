@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
-#include "PNInventoryTypes.h"
+#include "Inventory/PNInventoryTypes.h"
 #include "PNItemInstance.generated.h"
 
 class UPNItemDataAsset;

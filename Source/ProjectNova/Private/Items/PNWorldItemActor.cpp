@@ -3,7 +3,7 @@
 #include "Characters/PNBaseCharacter.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Items/PNInventoryComponent.h"
+#include "Inventory/PNInventoryComponent.h"
 #include "Items/PNItemDataAsset.h"
 #include "Items/PNItemInstance.h"
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Items/PNInventoryTypes.h"
+#include "Inventory/PNInventoryTypes.h"
 #include "PNEquipmentTypes.generated.h"
 
 class UPNItemDataAsset;

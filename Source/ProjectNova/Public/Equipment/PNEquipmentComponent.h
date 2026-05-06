@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Equipment/PNEquipmentTypes.h"
-#include "Items/PNInventoryTypes.h"
+#include "Inventory/PNInventoryTypes.h"
 #include "Items/PNItemTypes.h"
 #include "PNEquipmentComponent.generated.h"
 

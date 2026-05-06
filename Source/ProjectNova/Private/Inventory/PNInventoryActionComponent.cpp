@@ -1,10 +1,10 @@
-#include "Items/PNInventoryActionComponent.h"
+#include "Inventory/PNInventoryActionComponent.h"
 
 #include "Characters/PNBaseCharacter.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Equipment/PNEquipmentComponent.h"
-#include "Items/PNInventoryComponent.h"
+#include "Inventory/PNInventoryComponent.h"
 #include "Items/PNItemDataAsset.h"
 #include "Items/PNItemInstance.h"
 #include "Items/PNWorldItemActor.h"

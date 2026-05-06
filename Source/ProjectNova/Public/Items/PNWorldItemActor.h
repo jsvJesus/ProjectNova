@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Interaction/PNInteractableInterface.h"
-#include "PNInventoryTypes.h"
+#include "Inventory/PNInventoryTypes.h"
 #include "PNWorldItemActor.generated.h"
 
 class UStaticMeshComponent;

@@ -3,7 +3,7 @@
 #include "Characters/PNBaseCharacter.h"
 #include "Engine/Engine.h"
 #include "Equipment/PNEquipmentComponent.h"
-#include "Items/PNInventoryComponent.h"
+#include "Inventory/PNInventoryComponent.h"
 #include "Items/PNItemDataAsset.h"
 #include "Items/PNItemStats.h"
 #include "Net/UnrealNetwork.h"

@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Items/PNInventoryActionTypes.h"
+#include "Inventory/PNInventoryActionTypes.h"
 #include "PNInventoryActionComponent.generated.h"
 
 class APNWorldItemActor;
