@@ -13,6 +13,7 @@ class UPNCharacterStatsComponent;
 class UPNQuickSlotComponent;
 class USkeletalMesh;
 class USkeletalMeshComponent;
+class UPNItemDataAsset;
 
 UCLASS()
 class PROJECTNOVA_API APNBaseCharacter : public ACharacter
@@ -38,6 +39,12 @@ public:
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UPNInventoryComponent> InventoryComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UPNInventoryComponent> BackpackInventoryComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UPNInventoryComponent> VestInventoryComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UPNEquipmentComponent> EquipmentComponent;
@@ -93,9 +100,36 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_IsDead, BlueprintReadOnly, Category = "State")
 	bool bIsDead = false;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Equipment Inventories", meta = (ClampMin = "1"))
+	int32 DefaultBackpackInventoryColumns = 5;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Equipment Inventories", meta = (ClampMin = "1"))
+	int32 DefaultVestInventoryColumns = 4;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Equipment Inventories", meta = (ClampMin = "0"))
+	int32 DefaultVestInventorySlots = 8;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Equipment Inventories", meta = (ClampMin = "0.0"))
+	float DefaultVestInventoryMaxWeight = 10.0f;
+
 public:
 	UFUNCTION(BlueprintPure, Category = "Inventory")
 	UPNInventoryComponent* GetInventoryComponent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory")
+	UPNInventoryComponent* GetBackpackInventoryComponent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory")
+	UPNInventoryComponent* GetVestInventoryComponent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory")
+	bool HasActiveBackpackInventory() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory")
+	bool HasActiveVestInventory() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void RefreshEquipmentInventories();
 
 	UFUNCTION(BlueprintPure, Category = "Equipment")
 	UPNEquipmentComponent* GetEquipmentComponent() const;
@@ -169,4 +203,21 @@ protected:
 
 	UFUNCTION()
 	void OnRep_IsDead();
+
+	UFUNCTION()
+	void HandleEquipmentChanged();
+
+	void ApplyBackpackInventoryFromEquipment();
+	void ApplyVestInventoryFromEquipment();
+
+	void InitializeEquipmentInventory(
+		UPNInventoryComponent* TargetInventory,
+		EPNInventoryType InventoryType,
+		int32 SlotCount,
+		int32 Columns,
+		float MaxWeight,
+		bool bEnabled
+	);
+
+	int32 CalculateRowsFromSlotCount(int32 SlotCount, int32 Columns) const;
 };

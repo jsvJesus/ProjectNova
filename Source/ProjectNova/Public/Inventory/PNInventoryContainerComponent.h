@@ -70,6 +70,12 @@ public:
 	UPNInventoryComponent* GetOwnerInventoryComponent() const;
 
 	UFUNCTION(BlueprintPure, Category = "Inventory Container")
+	UPNInventoryComponent* GetOwnerBackpackInventoryComponent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory Container")
+	UPNInventoryComponent* GetOwnerVestInventoryComponent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory Container")
 	EPNInventoryType GetOpenedContainerType() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory Container|Transfer")
@@ -92,6 +98,30 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory Container|Transfer")
 	void RequestMoveOpenedContainerItemToOwnerAtPosition(FPNInventoryGridPosition SourcePosition, FPNInventoryGridPosition TargetPosition, int32 Quantity = -1, bool bHalfStack = false, bool bTargetRotated = false);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory Container|Backpack")
+	void RequestMoveOwnerItemToBackpack(FPNInventoryGridPosition SourcePosition, int32 Quantity = -1, bool bHalfStack = false);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory Container|Backpack")
+	void RequestMoveOwnerItemToBackpackAtPosition(FPNInventoryGridPosition SourcePosition, FPNInventoryGridPosition TargetPosition, int32 Quantity = -1, bool bHalfStack = false, bool bTargetRotated = false);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory Container|Backpack")
+	void RequestMoveBackpackItemToOwner(FPNInventoryGridPosition SourcePosition, int32 Quantity = -1, bool bHalfStack = false);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory Container|Backpack")
+	void RequestMoveBackpackItemToOwnerAtPosition(FPNInventoryGridPosition SourcePosition, FPNInventoryGridPosition TargetPosition, int32 Quantity = -1, bool bHalfStack = false, bool bTargetRotated = false);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory Container|Vest")
+	void RequestMoveOwnerItemToVest(FPNInventoryGridPosition SourcePosition, int32 Quantity = -1, bool bHalfStack = false);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory Container|Vest")
+	void RequestMoveOwnerItemToVestAtPosition(FPNInventoryGridPosition SourcePosition, FPNInventoryGridPosition TargetPosition, int32 Quantity = -1, bool bHalfStack = false, bool bTargetRotated = false);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory Container|Vest")
+	void RequestMoveVestItemToOwner(FPNInventoryGridPosition SourcePosition, int32 Quantity = -1, bool bHalfStack = false);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory Container|Vest")
+	void RequestMoveVestItemToOwnerAtPosition(FPNInventoryGridPosition SourcePosition, FPNInventoryGridPosition TargetPosition, int32 Quantity = -1, bool bHalfStack = false, bool bTargetRotated = false);
 
 protected:
 	UFUNCTION()

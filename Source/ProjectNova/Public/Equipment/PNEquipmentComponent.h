@@ -181,6 +181,8 @@ protected:
 	bool IsPrimaryWeaponCategory(EPNItemCategory Category) const;
 	bool IsSidearmCategory(EPNItemCategory Category) const;
 
+	bool HasLinkedInventoryItemsForSlot(EPNEquipmentSlot Slot) const;
+
 	EPNEquipmentOperationResult ConvertInventoryAddFail(EPNInventoryOperationResult InventoryResult) const;
 	EPNEquipmentOperationResult ConvertInventoryRemoveFail(EPNInventoryOperationResult InventoryResult) const;
 

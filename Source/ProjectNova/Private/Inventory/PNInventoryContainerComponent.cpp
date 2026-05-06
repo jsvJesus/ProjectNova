@@ -143,6 +143,18 @@ UPNInventoryComponent* UPNInventoryContainerComponent::GetOwnerInventoryComponen
 	return OwnerActor ? OwnerActor->FindComponentByClass<UPNInventoryComponent>() : nullptr;
 }
 
+UPNInventoryComponent* UPNInventoryContainerComponent::GetOwnerBackpackInventoryComponent() const
+{
+	const APNBaseCharacter* OwnerCharacter = Cast<APNBaseCharacter>(GetOwner());
+	return OwnerCharacter ? OwnerCharacter->GetBackpackInventoryComponent() : nullptr;
+}
+
+UPNInventoryComponent* UPNInventoryContainerComponent::GetOwnerVestInventoryComponent() const
+{
+	const APNBaseCharacter* OwnerCharacter = Cast<APNBaseCharacter>(GetOwner());
+	return OwnerCharacter ? OwnerCharacter->GetVestInventoryComponent() : nullptr;
+}
+
 EPNInventoryType UPNInventoryContainerComponent::GetOpenedContainerType() const
 {
 	return OpenedContainerInventory ? OpenedContainerInventory->Settings.InventoryType : EPNInventoryType::None;
@@ -462,6 +474,182 @@ void UPNInventoryContainerComponent::OnRep_OpenedContainerInventory()
 
 	OnContainerClosed.Broadcast();
 	PrintContainerDebugMessage(TEXT("Container closed replicated"), true);
+}
+
+void UPNInventoryContainerComponent::RequestMoveOwnerItemToBackpack(FPNInventoryGridPosition SourcePosition, int32 Quantity, bool bHalfStack)
+{
+	UPNInventoryComponent* OwnerInventory = GetOwnerInventoryComponent();
+	UPNInventoryComponent* BackpackInventory = GetOwnerBackpackInventoryComponent();
+
+	if (!OwnerInventory || !BackpackInventory)
+	{
+		return;
+	}
+
+	FPNInventoryContainerTransferRequest Request;
+	Request.SourceInventory = OwnerInventory;
+	Request.TargetInventory = BackpackInventory;
+	Request.SourcePosition = SourcePosition;
+	Request.Quantity = Quantity;
+	Request.bHalfStack = bHalfStack;
+	Request.bUseTargetPosition = false;
+
+	RequestMoveItemBetweenInventories(Request);
+}
+
+void UPNInventoryContainerComponent::RequestMoveOwnerItemToBackpackAtPosition(FPNInventoryGridPosition SourcePosition, FPNInventoryGridPosition TargetPosition, int32 Quantity, bool bHalfStack, bool bTargetRotated)
+{
+	UPNInventoryComponent* OwnerInventory = GetOwnerInventoryComponent();
+	UPNInventoryComponent* BackpackInventory = GetOwnerBackpackInventoryComponent();
+
+	if (!OwnerInventory || !BackpackInventory)
+	{
+		return;
+	}
+
+	FPNInventoryContainerTransferRequest Request;
+	Request.SourceInventory = OwnerInventory;
+	Request.TargetInventory = BackpackInventory;
+	Request.SourcePosition = SourcePosition;
+	Request.TargetPosition = TargetPosition;
+	Request.Quantity = Quantity;
+	Request.bHalfStack = bHalfStack;
+	Request.bUseTargetPosition = true;
+	Request.bTargetRotated = bTargetRotated;
+
+	RequestMoveItemBetweenInventories(Request);
+}
+
+void UPNInventoryContainerComponent::RequestMoveBackpackItemToOwner(FPNInventoryGridPosition SourcePosition, int32 Quantity, bool bHalfStack)
+{
+	UPNInventoryComponent* OwnerInventory = GetOwnerInventoryComponent();
+	UPNInventoryComponent* BackpackInventory = GetOwnerBackpackInventoryComponent();
+
+	if (!OwnerInventory || !BackpackInventory)
+	{
+		return;
+	}
+
+	FPNInventoryContainerTransferRequest Request;
+	Request.SourceInventory = BackpackInventory;
+	Request.TargetInventory = OwnerInventory;
+	Request.SourcePosition = SourcePosition;
+	Request.Quantity = Quantity;
+	Request.bHalfStack = bHalfStack;
+	Request.bUseTargetPosition = false;
+
+	RequestMoveItemBetweenInventories(Request);
+}
+
+void UPNInventoryContainerComponent::RequestMoveBackpackItemToOwnerAtPosition(FPNInventoryGridPosition SourcePosition, FPNInventoryGridPosition TargetPosition, int32 Quantity, bool bHalfStack, bool bTargetRotated)
+{
+	UPNInventoryComponent* OwnerInventory = GetOwnerInventoryComponent();
+	UPNInventoryComponent* BackpackInventory = GetOwnerBackpackInventoryComponent();
+
+	if (!OwnerInventory || !BackpackInventory)
+	{
+		return;
+	}
+
+	FPNInventoryContainerTransferRequest Request;
+	Request.SourceInventory = BackpackInventory;
+	Request.TargetInventory = OwnerInventory;
+	Request.SourcePosition = SourcePosition;
+	Request.TargetPosition = TargetPosition;
+	Request.Quantity = Quantity;
+	Request.bHalfStack = bHalfStack;
+	Request.bUseTargetPosition = true;
+	Request.bTargetRotated = bTargetRotated;
+
+	RequestMoveItemBetweenInventories(Request);
+}
+
+void UPNInventoryContainerComponent::RequestMoveOwnerItemToVest(FPNInventoryGridPosition SourcePosition, int32 Quantity, bool bHalfStack)
+{
+	UPNInventoryComponent* OwnerInventory = GetOwnerInventoryComponent();
+	UPNInventoryComponent* VestInventory = GetOwnerVestInventoryComponent();
+
+	if (!OwnerInventory || !VestInventory)
+	{
+		return;
+	}
+
+	FPNInventoryContainerTransferRequest Request;
+	Request.SourceInventory = OwnerInventory;
+	Request.TargetInventory = VestInventory;
+	Request.SourcePosition = SourcePosition;
+	Request.Quantity = Quantity;
+	Request.bHalfStack = bHalfStack;
+	Request.bUseTargetPosition = false;
+
+	RequestMoveItemBetweenInventories(Request);
+}
+
+void UPNInventoryContainerComponent::RequestMoveOwnerItemToVestAtPosition(FPNInventoryGridPosition SourcePosition, FPNInventoryGridPosition TargetPosition, int32 Quantity, bool bHalfStack, bool bTargetRotated)
+{
+	UPNInventoryComponent* OwnerInventory = GetOwnerInventoryComponent();
+	UPNInventoryComponent* VestInventory = GetOwnerVestInventoryComponent();
+
+	if (!OwnerInventory || !VestInventory)
+	{
+		return;
+	}
+
+	FPNInventoryContainerTransferRequest Request;
+	Request.SourceInventory = OwnerInventory;
+	Request.TargetInventory = VestInventory;
+	Request.SourcePosition = SourcePosition;
+	Request.TargetPosition = TargetPosition;
+	Request.Quantity = Quantity;
+	Request.bHalfStack = bHalfStack;
+	Request.bUseTargetPosition = true;
+	Request.bTargetRotated = bTargetRotated;
+
+	RequestMoveItemBetweenInventories(Request);
+}
+
+void UPNInventoryContainerComponent::RequestMoveVestItemToOwner(FPNInventoryGridPosition SourcePosition, int32 Quantity, bool bHalfStack)
+{
+	UPNInventoryComponent* OwnerInventory = GetOwnerInventoryComponent();
+	UPNInventoryComponent* VestInventory = GetOwnerVestInventoryComponent();
+
+	if (!OwnerInventory || !VestInventory)
+	{
+		return;
+	}
+
+	FPNInventoryContainerTransferRequest Request;
+	Request.SourceInventory = VestInventory;
+	Request.TargetInventory = OwnerInventory;
+	Request.SourcePosition = SourcePosition;
+	Request.Quantity = Quantity;
+	Request.bHalfStack = bHalfStack;
+	Request.bUseTargetPosition = false;
+
+	RequestMoveItemBetweenInventories(Request);
+}
+
+void UPNInventoryContainerComponent::RequestMoveVestItemToOwnerAtPosition(FPNInventoryGridPosition SourcePosition, FPNInventoryGridPosition TargetPosition, int32 Quantity, bool bHalfStack, bool bTargetRotated)
+{
+	UPNInventoryComponent* OwnerInventory = GetOwnerInventoryComponent();
+	UPNInventoryComponent* VestInventory = GetOwnerVestInventoryComponent();
+
+	if (!OwnerInventory || !VestInventory)
+	{
+		return;
+	}
+
+	FPNInventoryContainerTransferRequest Request;
+	Request.SourceInventory = VestInventory;
+	Request.TargetInventory = OwnerInventory;
+	Request.SourcePosition = SourcePosition;
+	Request.TargetPosition = TargetPosition;
+	Request.Quantity = Quantity;
+	Request.bHalfStack = bHalfStack;
+	Request.bUseTargetPosition = true;
+	Request.bTargetRotated = bTargetRotated;
+
+	RequestMoveItemBetweenInventories(Request);
 }
 
 bool UPNInventoryContainerComponent::HasContainerAuthority() const

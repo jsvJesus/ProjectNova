@@ -136,6 +136,12 @@ FPNEquipmentOperationResponse UPNEquipmentComponent::UnequipSlotToInventory(EPNE
 		return Response;
 	}
 
+	if (HasLinkedInventoryItemsForSlot(Slot))
+	{
+		Response.Result = EPNEquipmentOperationResult::InternalItemsNotEmpty;
+		return Response;
+	}
+
 	if (HasAnyInternalItemsForTopSlot(Slot))
 	{
 		Response.Result = EPNEquipmentOperationResult::InternalItemsNotEmpty;
@@ -476,6 +482,12 @@ UPNItemInstance* UPNEquipmentComponent::RemoveEquipmentSlotAsItemInstance(EPNEqu
 	if (!IsEquipmentSlotValid(Slot))
 	{
 		OutResponse.Result = EPNEquipmentOperationResult::InvalidSlot;
+		return nullptr;
+	}
+
+	if (HasLinkedInventoryItemsForSlot(Slot))
+	{
+		OutResponse.Result = EPNEquipmentOperationResult::InternalItemsNotEmpty;
 		return nullptr;
 	}
 
@@ -1344,4 +1356,27 @@ void UPNEquipmentComponent::BroadcastEquipmentChanged()
 	{
 		PrintEquipmentDebug();
 	}
+}
+
+bool UPNEquipmentComponent::HasLinkedInventoryItemsForSlot(EPNEquipmentSlot Slot) const
+{
+	const APNBaseCharacter* OwnerCharacter = Cast<APNBaseCharacter>(GetOwner());
+	if (!OwnerCharacter)
+	{
+		return false;
+	}
+
+	if (Slot == EPNEquipmentSlot::Backpack)
+	{
+		const UPNInventoryComponent* BackpackInventory = OwnerCharacter->GetBackpackInventoryComponent();
+		return BackpackInventory && BackpackInventory->GetInventoryItemCount() > 0;
+	}
+
+	if (Slot == EPNEquipmentSlot::Armor)
+	{
+		const UPNInventoryComponent* VestInventory = OwnerCharacter->GetVestInventoryComponent();
+		return VestInventory && VestInventory->GetInventoryItemCount() > 0;
+	}
+
+	return false;
 }

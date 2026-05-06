@@ -10,6 +10,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Stats/PNCharacterStatsComponent.h"
 #include "Inventory/PNInventoryContainerComponent.h"
+#include "Items/PNItemDataAsset.h"
 
 APNBaseCharacter::APNBaseCharacter()
 {
@@ -22,6 +23,18 @@ APNBaseCharacter::APNBaseCharacter()
 	if (InventoryComponent)
 	{
 		InventoryComponent->SetIsReplicated(true);
+	}
+
+	BackpackInventoryComponent = CreateDefaultSubobject<UPNInventoryComponent>(TEXT("BackpackInventoryComponent"));
+	if (BackpackInventoryComponent)
+	{
+		BackpackInventoryComponent->SetIsReplicated(true);
+	}
+
+	VestInventoryComponent = CreateDefaultSubobject<UPNInventoryComponent>(TEXT("VestInventoryComponent"));
+	if (VestInventoryComponent)
+	{
+		VestInventoryComponent->SetIsReplicated(true);
 	}
 
 	EquipmentComponent = CreateDefaultSubobject<UPNEquipmentComponent>(TEXT("EquipmentComponent"));
@@ -98,6 +111,16 @@ void APNBaseCharacter::BeginPlay()
 	SetupThirdPersonMeshVisibility();
 	ApplyModularCharacterMeshes();
 	ApplyMovementSpeed();
+
+	if (EquipmentComponent)
+	{
+		EquipmentComponent->OnEquipmentChanged.AddUniqueDynamic(this, &APNBaseCharacter::HandleEquipmentChanged);
+	}
+
+	if (HasAuthority())
+	{
+		RefreshEquipmentInventories();
+	}
 }
 
 void APNBaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -152,6 +175,177 @@ float APNBaseCharacter::TakeDamage(
 UPNInventoryComponent* APNBaseCharacter::GetInventoryComponent() const
 {
 	return InventoryComponent;
+}
+
+UPNInventoryComponent* APNBaseCharacter::GetBackpackInventoryComponent() const
+{
+	return BackpackInventoryComponent;
+}
+
+UPNInventoryComponent* APNBaseCharacter::GetVestInventoryComponent() const
+{
+	return VestInventoryComponent;
+}
+
+bool APNBaseCharacter::HasActiveBackpackInventory() const
+{
+	return BackpackInventoryComponent
+		&& BackpackInventoryComponent->CanReceiveItems()
+		&& BackpackInventoryComponent->CanRemoveItems()
+		&& BackpackInventoryComponent->GetSlotCount() > 1;
+}
+
+bool APNBaseCharacter::HasActiveVestInventory() const
+{
+	return VestInventoryComponent
+		&& VestInventoryComponent->CanReceiveItems()
+		&& VestInventoryComponent->CanRemoveItems()
+		&& VestInventoryComponent->GetSlotCount() > 1;
+}
+
+void APNBaseCharacter::RefreshEquipmentInventories()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	ApplyBackpackInventoryFromEquipment();
+	ApplyVestInventoryFromEquipment();
+}
+
+void APNBaseCharacter::HandleEquipmentChanged()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	RefreshEquipmentInventories();
+}
+
+void APNBaseCharacter::ApplyBackpackInventoryFromEquipment()
+{
+	if (!BackpackInventoryComponent)
+	{
+		return;
+	}
+
+	UPNItemDataAsset* BackpackData = EquipmentComponent
+		? EquipmentComponent->GetEquippedItemData(EPNEquipmentSlot::Backpack)
+		: nullptr;
+
+	if (!BackpackData)
+	{
+		if (BackpackInventoryComponent->GetInventoryItemCount() > 0)
+		{
+			return;
+		}
+
+		InitializeEquipmentInventory(
+			BackpackInventoryComponent,
+			EPNInventoryType::Backpack,
+			1,
+			1,
+			0.0f,
+			false
+		);
+
+		return;
+	}
+
+	const int32 SlotCount = FMath::Max(1, BackpackData->BackpackStats.MaxSlots);
+	const float MaxWeight = FMath::Max(0.0f, BackpackData->BackpackStats.MaxWeight);
+
+	InitializeEquipmentInventory(
+		BackpackInventoryComponent,
+		EPNInventoryType::Backpack,
+		SlotCount,
+		DefaultBackpackInventoryColumns,
+		MaxWeight,
+		true
+	);
+}
+
+void APNBaseCharacter::ApplyVestInventoryFromEquipment()
+{
+	if (!VestInventoryComponent)
+	{
+		return;
+	}
+
+	UPNItemDataAsset* ArmorData = EquipmentComponent
+		? EquipmentComponent->GetEquippedItemData(EPNEquipmentSlot::Armor)
+		: nullptr;
+
+	if (!ArmorData)
+	{
+		if (VestInventoryComponent->GetInventoryItemCount() > 0)
+		{
+			return;
+		}
+
+		InitializeEquipmentInventory(
+			VestInventoryComponent,
+			EPNInventoryType::Vest,
+			1,
+			1,
+			0.0f,
+			false
+		);
+
+		return;
+	}
+
+	InitializeEquipmentInventory(
+		VestInventoryComponent,
+		EPNInventoryType::Vest,
+		DefaultVestInventorySlots,
+		DefaultVestInventoryColumns,
+		DefaultVestInventoryMaxWeight,
+		true
+	);
+}
+
+void APNBaseCharacter::InitializeEquipmentInventory(
+	UPNInventoryComponent* TargetInventory,
+	EPNInventoryType InventoryType,
+	int32 SlotCount,
+	int32 Columns,
+	float MaxWeight,
+	bool bEnabled
+)
+{
+	if (!TargetInventory)
+	{
+		return;
+	}
+
+	FPNInventorySettings NewSettings;
+	NewSettings.InventoryType = InventoryType;
+	NewSettings.GridSize.Columns = FMath::Max(1, Columns);
+	NewSettings.GridSize.Rows = CalculateRowsFromSlotCount(SlotCount, NewSettings.GridSize.Columns);
+
+	NewSettings.bUseWeightLimit = MaxWeight > 0.0f;
+	NewSettings.MaxWeight = FMath::Max(0.0f, MaxWeight);
+
+	NewSettings.bAllowItemRotation = true;
+	NewSettings.bAllowStacking = true;
+
+	NewSettings.bCanReceiveItems = bEnabled;
+	NewSettings.bCanRemoveItems = bEnabled;
+	NewSettings.bCanDropItems = bEnabled;
+	NewSettings.bCanTradeItems = false;
+
+	TargetInventory->InitializeInventory(NewSettings);
+}
+
+int32 APNBaseCharacter::CalculateRowsFromSlotCount(int32 SlotCount, int32 Columns) const
+{
+	const int32 SafeSlotCount = FMath::Max(1, SlotCount);
+	const int32 SafeColumns = FMath::Max(1, Columns);
+
+	return FMath::Max(1, FMath::CeilToInt(static_cast<float>(SafeSlotCount) / static_cast<float>(SafeColumns)));
 }
 
 UPNInventoryActionComponent* APNBaseCharacter::GetInventoryActionComponent() const
