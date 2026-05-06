@@ -344,6 +344,238 @@ FPNEquipmentOperationResponse UPNEquipmentComponent::RemoveInternalSlotToInvento
 	return Response;
 }
 
+FPNEquipmentOperationResponse UPNEquipmentComponent::EquipItemInstanceToSlot(UPNItemInstance* ItemInstance, EPNEquipmentSlot TargetSlot)
+{
+	FPNEquipmentOperationResponse Response;
+	Response.Slot = TargetSlot;
+	Response.Result = EPNEquipmentOperationResult::UnknownError;
+
+	if (!HasEquipmentAuthority())
+	{
+		Response.Result = EPNEquipmentOperationResult::InvalidEquipment;
+		return Response;
+	}
+
+	if (!IsEquipmentSlotValid(TargetSlot))
+	{
+		Response.Result = EPNEquipmentOperationResult::InvalidSlot;
+		return Response;
+	}
+
+	if (IsEquipmentSlotOccupied(TargetSlot))
+	{
+		Response.Result = EPNEquipmentOperationResult::SlotOccupied;
+		return Response;
+	}
+
+	if (!ItemInstance || !ItemInstance->IsValidItem())
+	{
+		Response.Result = EPNEquipmentOperationResult::InvalidItem;
+		return Response;
+	}
+
+	if (!CanEquipItemToSlot(ItemInstance, TargetSlot))
+	{
+		Response.Result = EPNEquipmentOperationResult::ItemTypeNotAllowed;
+		return Response;
+	}
+
+	FPNRepItemInstanceData EquipData = ItemInstance->ToRepData();
+	EquipData.Quantity = 1;
+
+	SetEquipmentSlotItem(TargetSlot, EquipData);
+
+	Response.bSuccess = true;
+	Response.Result = EPNEquipmentOperationResult::Success;
+	Response.ItemData = EquipData.ItemData;
+
+	BroadcastEquipmentChanged();
+	return Response;
+}
+
+FPNEquipmentOperationResponse UPNEquipmentComponent::InsertItemInstanceToInternalSlot(UPNItemInstance* ItemInstance, EPNEquipmentInternalContainer Container, int32 InternalSlotIndex)
+{
+	FPNEquipmentOperationResponse Response;
+	Response.InternalContainer = Container;
+	Response.InternalSlotIndex = InternalSlotIndex;
+	Response.Result = EPNEquipmentOperationResult::UnknownError;
+
+	if (!HasEquipmentAuthority())
+	{
+		Response.Result = EPNEquipmentOperationResult::InvalidEquipment;
+		return Response;
+	}
+
+	if (Container == EPNEquipmentInternalContainer::None)
+	{
+		Response.Result = EPNEquipmentOperationResult::InvalidInternalContainer;
+		return Response;
+	}
+
+	if (InternalSlotIndex < 0 || InternalSlotIndex >= GetInternalSlotCount(Container))
+	{
+		Response.Result = EPNEquipmentOperationResult::InvalidInternalSlotIndex;
+		return Response;
+	}
+
+	if (InternalSlotIndex >= GetUnlockedInternalSlotCount(Container))
+	{
+		Response.Result = EPNEquipmentOperationResult::InternalSlotLocked;
+		return Response;
+	}
+
+	if (IsInternalSlotOccupied(Container, InternalSlotIndex))
+	{
+		Response.Result = EPNEquipmentOperationResult::SlotOccupied;
+		return Response;
+	}
+
+	if (!GetEquippedContainerData(Container))
+	{
+		Response.Result = EPNEquipmentOperationResult::TopSlotRequired;
+		return Response;
+	}
+
+	if (!ItemInstance || !ItemInstance->IsValidItem())
+	{
+		Response.Result = EPNEquipmentOperationResult::InvalidItem;
+		return Response;
+	}
+
+	if (!CanInsertItemIntoInternalSlot(ItemInstance, Container, InternalSlotIndex))
+	{
+		Response.Result = EPNEquipmentOperationResult::ItemTypeNotAllowed;
+		return Response;
+	}
+
+	FPNRepItemInstanceData InternalData = ItemInstance->ToRepData();
+	InternalData.Quantity = 1;
+
+	SetInternalSlotItem(Container, InternalSlotIndex, InternalData);
+
+	Response.bSuccess = true;
+	Response.Result = EPNEquipmentOperationResult::Success;
+	Response.ItemData = InternalData.ItemData;
+
+	BroadcastEquipmentChanged();
+	return Response;
+}
+
+UPNItemInstance* UPNEquipmentComponent::RemoveEquipmentSlotAsItemInstance(EPNEquipmentSlot Slot, FPNEquipmentOperationResponse& OutResponse)
+{
+	OutResponse = FPNEquipmentOperationResponse();
+	OutResponse.Slot = Slot;
+	OutResponse.Result = EPNEquipmentOperationResult::UnknownError;
+
+	if (!HasEquipmentAuthority())
+	{
+		OutResponse.Result = EPNEquipmentOperationResult::InvalidEquipment;
+		return nullptr;
+	}
+
+	if (!IsEquipmentSlotValid(Slot))
+	{
+		OutResponse.Result = EPNEquipmentOperationResult::InvalidSlot;
+		return nullptr;
+	}
+
+	if (HasAnyInternalItemsForTopSlot(Slot))
+	{
+		OutResponse.Result = EPNEquipmentOperationResult::InternalItemsNotEmpty;
+		return nullptr;
+	}
+
+	const int32 SlotIndex = FindEquipmentSlotIndex(Slot);
+	if (!EquipmentSlots.IsValidIndex(SlotIndex) || EquipmentSlots[SlotIndex].IsEmpty())
+	{
+		OutResponse.Result = EPNEquipmentOperationResult::SlotEmpty;
+		return nullptr;
+	}
+
+	UPNItemInstance* ItemInstance = NewObject<UPNItemInstance>(this);
+	if (!ItemInstance)
+	{
+		OutResponse.Result = EPNEquipmentOperationResult::InvalidItem;
+		return nullptr;
+	}
+
+	ItemInstance->InitializeFromRepData(EquipmentSlots[SlotIndex].InstanceData);
+	if (!ItemInstance->IsValidItem())
+	{
+		OutResponse.Result = EPNEquipmentOperationResult::InvalidItem;
+		return nullptr;
+	}
+
+	OutResponse.ItemData = ItemInstance->GetItemData();
+
+	ClearEquipmentSlot(Slot);
+
+	OutResponse.bSuccess = true;
+	OutResponse.Result = EPNEquipmentOperationResult::Success;
+
+	BroadcastEquipmentChanged();
+	return ItemInstance;
+}
+
+UPNItemInstance* UPNEquipmentComponent::RemoveInternalSlotAsItemInstance(EPNEquipmentInternalContainer Container, int32 InternalSlotIndex, FPNEquipmentOperationResponse& OutResponse)
+{
+	OutResponse = FPNEquipmentOperationResponse();
+	OutResponse.InternalContainer = Container;
+	OutResponse.InternalSlotIndex = InternalSlotIndex;
+	OutResponse.Result = EPNEquipmentOperationResult::UnknownError;
+
+	if (!HasEquipmentAuthority())
+	{
+		OutResponse.Result = EPNEquipmentOperationResult::InvalidEquipment;
+		return nullptr;
+	}
+
+	if (Container == EPNEquipmentInternalContainer::None)
+	{
+		OutResponse.Result = EPNEquipmentOperationResult::InvalidInternalContainer;
+		return nullptr;
+	}
+
+	if (InternalSlotIndex < 0 || InternalSlotIndex >= GetInternalSlotCount(Container))
+	{
+		OutResponse.Result = EPNEquipmentOperationResult::InvalidInternalSlotIndex;
+		return nullptr;
+	}
+
+	const int32 SlotIndex = FindInternalSlotIndex(Container, InternalSlotIndex);
+	const TArray<FPNEquipmentInternalSlotEntry>* InternalSlots = GetConstInternalSlots(Container);
+
+	if (!InternalSlots || !InternalSlots->IsValidIndex(SlotIndex) || (*InternalSlots)[SlotIndex].IsEmpty())
+	{
+		OutResponse.Result = EPNEquipmentOperationResult::SlotEmpty;
+		return nullptr;
+	}
+
+	UPNItemInstance* ItemInstance = NewObject<UPNItemInstance>(this);
+	if (!ItemInstance)
+	{
+		OutResponse.Result = EPNEquipmentOperationResult::InvalidItem;
+		return nullptr;
+	}
+
+	ItemInstance->InitializeFromRepData((*InternalSlots)[SlotIndex].InstanceData);
+	if (!ItemInstance->IsValidItem())
+	{
+		OutResponse.Result = EPNEquipmentOperationResult::InvalidItem;
+		return nullptr;
+	}
+
+	OutResponse.ItemData = ItemInstance->GetItemData();
+
+	ClearInternalSlot(Container, InternalSlotIndex);
+
+	OutResponse.bSuccess = true;
+	OutResponse.Result = EPNEquipmentOperationResult::Success;
+
+	BroadcastEquipmentChanged();
+	return ItemInstance;
+}
+
 void UPNEquipmentComponent::RequestEquipFromInventoryToSlot(FPNInventoryGridPosition InventoryPosition, EPNEquipmentSlot TargetSlot)
 {
 	AActor* OwnerActor = GetOwner();

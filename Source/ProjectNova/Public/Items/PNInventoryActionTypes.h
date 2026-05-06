@@ -168,3 +168,36 @@ struct PROJECTNOVA_API FPNInventoryActionResponse
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory Action")
 	FText ItemDescription;
 };
+
+USTRUCT(BlueprintType)
+struct PROJECTNOVA_API FPNInventoryContextMenuEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory Context Menu")
+	EPNInventoryActionType ActionType = EPNInventoryActionType::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory Context Menu")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory Context Menu")
+	bool bEnabled = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory Context Menu")
+	bool bRequiresDestination = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory Context Menu")
+	bool bRequiresQuantity = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory Context Menu")
+	bool bDestructive = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory Context Menu")
+	int32 SortPriority = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory Context Menu")
+	EPNInventoryActionResult DisabledReason = EPNInventoryActionResult::UnknownError;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory Context Menu")
+	FPNInventoryActionRequest Request;
+};

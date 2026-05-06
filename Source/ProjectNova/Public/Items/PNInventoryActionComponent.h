@@ -86,11 +86,35 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory Action|Drop")
 	void RequestDropQuickSlotItem(int32 QuickSlotIndex, int32 Quantity = -1);
 
+	UFUNCTION(BlueprintCallable, Category = "Inventory Action|Drop")
+	void RequestDropEquipmentItem(EPNEquipmentSlot SourceSlot);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory Action|Drop")
+	void RequestDropEquipmentInternalItem(EPNEquipmentInternalContainer Container, int32 InternalSlotIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory Action|Move")
+	void RequestMoveEquipmentItemToQuickSlot(EPNEquipmentSlot SourceSlot, int32 QuickSlotIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory Action|Move")
+	void RequestMoveEquipmentInternalItemToQuickSlot(EPNEquipmentInternalContainer Container, int32 InternalSlotIndex, int32 QuickSlotIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory Action|Move")
+	void RequestMoveQuickSlotItemToEquipment(int32 QuickSlotIndex, EPNEquipmentSlot TargetSlot);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory Action|Move")
+	void RequestMoveQuickSlotItemToEquipmentInternal(int32 QuickSlotIndex, EPNEquipmentInternalContainer Container, int32 InternalSlotIndex);
+
 	UFUNCTION(BlueprintCallable, Category = "Inventory Action|Rotate")
 	void RequestRotateInventoryItem(FPNInventoryGridPosition InventoryPosition);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory Action|Inspect")
 	FPNInventoryActionResponse InspectTarget(const FPNInventoryActionTarget& Target) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory Action|Context Menu")
+	TArray<FPNInventoryContextMenuEntry> GetContextMenuActions(const FPNInventoryActionTarget& Target) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory Action|Context Menu")
+	bool BuildContextActionRequest(const FPNInventoryActionTarget& Target, EPNInventoryActionType ActionType, FPNInventoryActionRequest& OutRequest) const;
 
 protected:
 	FPNInventoryActionResponse HandleUseAction(const FPNInventoryActionRequest& Request);
@@ -110,6 +134,22 @@ protected:
 
 	UPNItemInstance* GetInventoryItemAtTarget(const FPNInventoryActionTarget& Target) const;
 	UPNItemDataAsset* GetItemDataFromTarget(const FPNInventoryActionTarget& Target) const;
+
+	int32 GetQuantityFromTarget(const FPNInventoryActionTarget& Target) const;
+
+	bool FindBestEquipmentSlotForItemData(UPNItemDataAsset* ItemData, EPNEquipmentSlot& OutSlot) const;
+
+	FPNInventoryContextMenuEntry MakeContextMenuEntry(
+		const FPNInventoryActionTarget& Target,
+		EPNInventoryActionType ActionType,
+		const FText& DisplayName,
+		bool bEnabled,
+		int32 SortPriority,
+		bool bRequiresDestination = false,
+		bool bRequiresQuantity = false,
+		bool bDestructive = false,
+		EPNInventoryActionResult DisabledReason = EPNInventoryActionResult::UnknownError
+	) const;
 
 	int32 ResolveInventoryQuantity(UPNItemInstance* SourceItem, const FPNInventoryActionRequest& Request) const;
 	int32 ResolveQuickSlotQuantity(const FPNInventoryQuickSlotEntry& SlotEntry, const FPNInventoryActionRequest& Request) const;

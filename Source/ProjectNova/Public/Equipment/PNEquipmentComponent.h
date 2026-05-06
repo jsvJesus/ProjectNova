@@ -58,6 +58,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Equipment")
 	FPNEquipmentOperationResponse RemoveInternalSlotToInventory(EPNEquipmentInternalContainer Container, int32 InternalSlotIndex);
 
+	UFUNCTION(BlueprintCallable, Category = "Equipment|Direct")
+	FPNEquipmentOperationResponse EquipItemInstanceToSlot(UPNItemInstance* ItemInstance, EPNEquipmentSlot TargetSlot);
+
+	UFUNCTION(BlueprintCallable, Category = "Equipment|Direct")
+	FPNEquipmentOperationResponse InsertItemInstanceToInternalSlot(UPNItemInstance* ItemInstance, EPNEquipmentInternalContainer Container, int32 InternalSlotIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Equipment|Direct")
+	UPNItemInstance* RemoveEquipmentSlotAsItemInstance(EPNEquipmentSlot Slot, FPNEquipmentOperationResponse& OutResponse);
+
+	UFUNCTION(BlueprintCallable, Category = "Equipment|Direct")
+	UPNItemInstance* RemoveInternalSlotAsItemInstance(EPNEquipmentInternalContainer Container, int32 InternalSlotIndex, FPNEquipmentOperationResponse& OutResponse);
+
 	UFUNCTION(BlueprintCallable, Category = "Equipment")
 	void RequestEquipFromInventoryToSlot(FPNInventoryGridPosition InventoryPosition, EPNEquipmentSlot TargetSlot);
 
