@@ -1,6 +1,8 @@
 #include "Inventory/PNLootContainerActor.h"
 
 #include "Inventory/PNInventoryComponent.h"
+#include "Inventory/PNLootTableDataAsset.h"
+#include "Items/PNItemInstance.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 
@@ -19,8 +21,8 @@ APNLootContainerActor::APNLootContainerActor()
 	ContainerSettings.bAllowItemRotation = true;
 	ContainerSettings.bAllowStacking = true;
 
-	// Важно: лут-контейнер только отдаёт предметы.
-	// Игрок не может положить предмет внутрь мешка/сундука/стеллажа.
+	// Лут-контейнер только отдаёт предметы.
+	// Игрок не может положить предмет внутрь мешка/сундука/стеллажа/холодильника.
 	ContainerSettings.bCanReceiveItems = false;
 	ContainerSettings.bCanRemoveItems = true;
 	ContainerSettings.bCanDropItems = false;
@@ -38,6 +40,11 @@ void APNLootContainerActor::BeginPlay()
 
 	if (HasAuthority())
 	{
+		if (bSpawnLootOnBeginPlay)
+		{
+			RespawnLootFromTable();
+		}
+
 		HandleLootInventoryChanged();
 	}
 }
@@ -103,11 +110,72 @@ void APNLootContainerActor::FinishLootRespawnCooldown()
 
 	bLootRespawnBlocked = false;
 
-	// Пока LootTable нет — сюда в Blueprint можно временно заспавнить предметы руками.
-	// Позже Stage LootTable будет заполнять InventoryComponent на сервере.
-	BP_RespawnLoot();
+	const int32 SpawnedStacks = RespawnLootFromTable();
+
+	if (SpawnedStacks <= 0)
+	{
+		BP_RespawnLoot();
+	}
+
+	BP_OnLootRespawned(SpawnedStacks);
 
 	HandleLootInventoryChanged();
+}
+
+int32 APNLootContainerActor::RespawnLootFromTable()
+{
+	if (!HasAuthority() || !InventoryComponent)
+	{
+		return 0;
+	}
+
+	bIsRespawningLoot = true;
+
+	if (bClearInventoryBeforeLootRespawn)
+	{
+		FPNInventorySettings SettingsToApply = ContainerSettings;
+		SettingsToApply.InventoryType = ContainerType;
+		InventoryComponent->InitializeInventory(SettingsToApply);
+	}
+
+	int32 SpawnedStacks = 0;
+
+	if (LootTable)
+	{
+		TArray<UPNItemInstance*> GeneratedLoot;
+
+		if (bUseFixedLootSeed)
+		{
+			GeneratedLoot = LootTable->GenerateLootWithSeed(this, FixedLootSeed);
+		}
+		else
+		{
+			GeneratedLoot = LootTable->GenerateLoot(this);
+		}
+
+		for (UPNItemInstance* LootItem : GeneratedLoot)
+		{
+			if (!LootItem || !LootItem->IsValidItem())
+			{
+				continue;
+			}
+
+			FPNInventoryAddItemResult AddResult = InventoryComponent->AddItem(LootItem, true, true);
+			if (AddResult.AddedQuantity > 0)
+			{
+				++SpawnedStacks;
+			}
+		}
+	}
+
+	bIsRespawningLoot = false;
+
+	if (SpawnedStacks > 0)
+	{
+		bLootRespawnBlocked = false;
+	}
+
+	return SpawnedStacks;
 }
 
 bool APNLootContainerActor::CanInteract_Implementation(APawn* InteractingPawn) const
@@ -143,6 +211,11 @@ bool APNLootContainerActor::Interact_Implementation(APawn* InteractingPawn)
 void APNLootContainerActor::HandleLootInventoryChanged()
 {
 	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (bIsRespawningLoot)
 	{
 		return;
 	}
