@@ -6,12 +6,13 @@
 #include "InputCoreTypes.h"
 #include "UI/PNPlayerHUDComponent.h"
 #include "UI/PNPlayerHUDWidget.h"
+#include "UI/Inventory/PNInventoryHUDWidget.h"
 
 APNPlayerController::APNPlayerController()
 {
 	bReplicates = true;
 
-	PlayerHUDWidgetClass = UPNPlayerHUDWidget::StaticClass();
+	PlayerHUDWidgetClass = UPNInventoryHUDWidget::StaticClass();
 }
 
 void APNPlayerController::BeginPlay()
@@ -211,7 +212,7 @@ void APNPlayerController::InitializeHUDWidgetForCurrentPawn()
 	{
 		return;
 	}
-
+	
 	APNBaseCharacter* PNCharacter = GetPNBaseCharacter();
 	UPNPlayerHUDComponent* PlayerHUDComponent = PNCharacter
 		? PNCharacter->GetPlayerHUDComponent()

@@ -159,20 +159,19 @@ protected:
 	bool bInventoryVisible = false;
 
 public:
-	UFUNCTION(BlueprintCallable, Category = "ProjectNova|HUD")
-	void InitializeWithHUDComponent(UPNPlayerHUDComponent* InHUDComponent);
+	virtual void InitializeWithHUDComponent(UPNPlayerHUDComponent* InHUDComponent);
 
 	UFUNCTION(BlueprintCallable, Category = "ProjectNova|HUD")
-	void SetHUDData(const FPNPlayerHUDSnapshot& InHUDData);
+	virtual void SetHUDData(const FPNPlayerHUDSnapshot& InHUDData);
 
 	UFUNCTION(BlueprintCallable, Category = "ProjectNova|HUD")
-	void RefreshFromHUDComponent();
+	virtual void RefreshFromHUDComponent();
 
 	UFUNCTION(BlueprintCallable, Category = "ProjectNova|HUD")
-	void SetInventoryVisible(bool bVisible);
+	virtual void SetInventoryVisible(bool bVisible);
 
 	UFUNCTION(BlueprintCallable, Category = "ProjectNova|HUD")
-	void ToggleInventoryVisible();
+	virtual void ToggleInventoryVisible();
 
 	UFUNCTION(BlueprintPure, Category = "ProjectNova|HUD")
 	bool IsInventoryVisible() const;
