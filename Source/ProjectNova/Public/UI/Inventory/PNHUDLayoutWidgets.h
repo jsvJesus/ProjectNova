@@ -5,7 +5,18 @@
 #include "UI/PNHUDTypes.h"
 #include "PNHUDLayoutWidgets.generated.h"
 
+class UBorder;
+class UCanvasPanel;
+class UHorizontalBox;
+class UImage;
+class UOverlay;
 class UPNItemDataAsset;
+class USizeBox;
+class UTextBlock;
+class UTexture2D;
+class UUniformGridPanel;
+class UVerticalBox;
+class UWidget;
 
 UENUM(BlueprintType)
 enum class EPNInventoryHUDPage : uint8
@@ -38,6 +49,51 @@ struct PROJECTNOVA_API FPNHUDPlayerInfoData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Player Info")
 	int32 GameCoins = 0;
+};
+
+USTRUCT(BlueprintType)
+struct PROJECTNOVA_API FPNHUDInventoryGridSlotData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory Slot")
+	EPNHUDInventoryPanel Panel = EPNHUDInventoryPanel::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory Slot")
+	int32 SlotIndex = INDEX_NONE;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory Slot")
+	FPNInventoryGridPosition Position;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory Slot")
+	bool bUnlocked = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory Slot")
+	bool bOccupied = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory Slot")
+	bool bRootItemSlot = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory Slot")
+	FPNHUDInventoryItemData OccupyingItem;
+};
+
+USTRUCT(BlueprintType)
+struct PROJECTNOVA_API FPNHUDInventoryItemVisualData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory Item")
+	FPNHUDInventoryItemData ItemData;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory Item")
+	FVector2D PixelPosition = FVector2D::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory Item")
+	FVector2D PixelSize = FVector2D::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory Item")
+	int32 Layer = 1;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPNHUDNavigationPageRequestedSignature, EPNInventoryHUDPage, Page);
@@ -121,13 +177,133 @@ class PROJECTNOVA_API UPNInventoryGridWidget : public UPNHUDLayoutWidget
 {
 	GENERATED_BODY()
 
+public:
+	UPNInventoryGridWidget(const FObjectInitializer& ObjectInitializer);
+
+protected:
+	virtual void NativePreConstruct() override;
+	virtual void NativeConstruct() override;
+
 protected:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Inventory")
 	FPNHUDInventoryPanelData InventoryData;
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Native Render")
+	bool bBuildNativeGrid = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Native Render")
+	bool bPreviewInDesigner = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Header")
+	FText DisplayTitle;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Header")
+	TSoftObjectPtr<UTexture2D> DisplayIcon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid", meta = (ClampMin = "1"))
+	int32 MaxSupportedSlotCount = 16;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid", meta = (ClampMin = "1"))
+	int32 DefaultVisualColumns = 4;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid")
+	bool bUseInventoryColumnsWhenActive = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid", meta = (ClampMin = "8.0"))
+	float SlotSize = 64.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid", meta = (ClampMin = "0.0"))
+	float SlotPadding = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid", meta = (ClampMin = "0.0"))
+	float HeaderHeight = 34.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid", meta = (ClampMin = "0.0"))
+	float RootPadding = 4.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Preview", meta = (ClampMin = "0"))
+	int32 PreviewUnlockedSlots = 16;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Preview", meta = (ClampMin = "0"))
+	int32 PreviewUsedSlots = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Textures")
+	TSoftObjectPtr<UTexture2D> RootBackgroundTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Textures")
+	TSoftObjectPtr<UTexture2D> HeaderBackgroundTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Textures")
+	TSoftObjectPtr<UTexture2D> SlotUnlockedTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Textures")
+	TSoftObjectPtr<UTexture2D> SlotLockedTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Textures")
+	TSoftObjectPtr<UTexture2D> SlotOccupiedTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
+	FLinearColor RootBackgroundColor = FLinearColor(0.015f, 0.016f, 0.018f, 0.92f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
+	FLinearColor HeaderBackgroundColor = FLinearColor(0.025f, 0.028f, 0.032f, 0.96f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
+	FLinearColor SlotUnlockedColor = FLinearColor(0.035f, 0.04f, 0.045f, 0.92f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
+	FLinearColor SlotLockedColor = FLinearColor(0.006f, 0.007f, 0.008f, 0.22f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
+	FLinearColor SlotOccupiedColor = FLinearColor(0.08f, 0.09f, 0.10f, 0.96f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
+	FLinearColor TextColor = FLinearColor(0.88f, 0.92f, 0.94f, 1.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
+	FLinearColor CounterTextColor = FLinearColor(0.72f, 0.76f, 0.78f, 1.0f);
+
+protected:
+	UPROPERTY(Transient)
+	TObjectPtr<USizeBox> RootSizeBox = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> RootBorder = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UVerticalBox> RootVerticalBox = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UHorizontalBox> HeaderBox = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UImage> HeaderIconImage = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> HeaderTitleText = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> HeaderCounterText = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<USizeBox> GridSizeBox = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UOverlay> GridOverlay = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UUniformGridPanel> SlotGridPanel = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCanvasPanel> ItemCanvasPanel = nullptr;
+
+public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	void SetInventoryData(const FPNHUDInventoryPanelData& InInventoryData);
+	virtual void SetInventoryData(const FPNHUDInventoryPanelData& InInventoryData);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Native Render")
+	void RefreshNativeGrid();
 
 	UFUNCTION(BlueprintPure, Category = "Inventory")
 	const FPNHUDInventoryPanelData& GetInventoryData() const;
@@ -141,8 +317,84 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Inventory")
 	float GetSlotSize() const;
 
+	UFUNCTION(BlueprintPure, Category = "Inventory|Header")
+	FText GetDisplayTitle() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Header")
+	FText GetSlotCounterText() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Header")
+	int32 GetUnlockedSlotCount() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Header")
+	int32 GetMaxVisualSlotCount() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Header")
+	int32 GetOccupiedItemCount() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Header")
+	int32 GetUsedSlotAreaCount() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Grid")
+	int32 GetVisualColumns() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Grid")
+	int32 GetVisualRows() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Grid")
+	FVector2D GetVisualGridSize() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Grid")
+	TArray<FPNHUDInventoryGridSlotData> GetVisualGridSlots() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Grid")
+	TArray<FPNHUDInventoryItemVisualData> GetVisualItemData() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory|Grid")
+	bool IsInventoryUnlocked() const;
+
 	UFUNCTION(BlueprintImplementableEvent, Category = "Inventory")
 	void BP_OnInventoryDataUpdated(const FPNHUDInventoryPanelData& InInventoryData);
+
+protected:
+	void BuildPreviewInventoryData();
+	void BuildNativeGridRoot();
+	void UpdateNativeHeader();
+	void RebuildNativeSlots();
+	void RebuildNativeItems();
+	void ApplyTextureToImage(UImage* TargetImage, UTexture2D* Texture, const FVector2D& ImageSize) const;
+	void ApplyTextureToBorder(UBorder* TargetBorder, UTexture2D* Texture, const FLinearColor& Color, const FVector2D& ImageSize) const;
+
+	bool FindItemAtPosition(const FPNInventoryGridPosition& Position, FPNHUDInventoryItemData& OutItem, bool& bOutRootSlot) const;
+};
+
+UCLASS(BlueprintType, Blueprintable)
+class PROJECTNOVA_API UPNInventoryGridSlotWidget : public UPNHUDLayoutWidget
+{
+	GENERATED_BODY()
+
+protected:
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Inventory Slot")
+	FPNHUDInventoryGridSlotData SlotData;
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "Inventory Slot")
+	void SetSlotData(const FPNHUDInventoryGridSlotData& InSlotData);
+
+	UFUNCTION(BlueprintPure, Category = "Inventory Slot")
+	const FPNHUDInventoryGridSlotData& GetSlotData() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory Slot")
+	bool IsUnlocked() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory Slot")
+	bool IsOccupied() const;
+
+	UFUNCTION(BlueprintPure, Category = "Inventory Slot")
+	bool IsRootItemSlot() const;
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Inventory Slot")
+	void BP_OnSlotDataUpdated(const FPNHUDInventoryGridSlotData& InSlotData);
 };
 
 UCLASS(BlueprintType, Blueprintable)
