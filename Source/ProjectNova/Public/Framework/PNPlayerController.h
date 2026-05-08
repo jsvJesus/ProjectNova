@@ -7,6 +7,7 @@
 class APNBaseCharacter;
 class APNPlayerState;
 class UPNPlayerHUDWidget;
+class UPNInventoryHUDWidget;
 
 UCLASS()
 class PROJECTNOVA_API APNPlayerController : public APlayerController
@@ -27,11 +28,20 @@ public:
 	TSubclassOf<UPNPlayerHUDWidget> PlayerHUDWidgetClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Player HUD")
+	TSubclassOf<UPNInventoryHUDWidget> InventoryHUDWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Player HUD")
 	int32 PlayerHUDZOrder = 0;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Player HUD")
+	int32 InventoryHUDZOrder = 10;
 
 protected:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Player HUD")
 	TObjectPtr<UPNPlayerHUDWidget> PlayerHUDWidget = nullptr;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Player HUD")
+	TObjectPtr<UPNInventoryHUDWidget> InventoryHUDWidget = nullptr;
 
 public:
 	UFUNCTION(BlueprintPure, Category = "Player Controller")
@@ -45,6 +55,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Player HUD")
 	void CreatePlayerHUD();
+
+	UFUNCTION(BlueprintCallable, Category = "Player HUD")
+	void CreateInventoryHUD();
 
 	UFUNCTION(BlueprintCallable, Category = "Player HUD")
 	void RemovePlayerHUD();
@@ -61,6 +74,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Player HUD")
 	UPNPlayerHUDWidget* GetPlayerHUDWidget() const;
 
+	UFUNCTION(BlueprintPure, Category = "Player HUD")
+	UPNInventoryHUDWidget* GetInventoryHUDWidget() const;
+
 	UFUNCTION(BlueprintCallable, Category = "Player Controller")
 	void RequestRespawn();
 
@@ -71,7 +87,13 @@ public:
 	void Client_ShowSystemMessage(const FText& Message);
 
 protected:
+	void InitializeHUDWidgetsForCurrentPawn();
+	void InitializePlayerHUDWidgetForCurrentPawn();
+	void InitializeInventoryHUDWidgetForCurrentPawn();
+
+	// Старое имя оставляем как wrapper, чтобы не ловить ошибки при частичной замене файлов.
 	void InitializeHUDWidgetForCurrentPawn();
+
 	void SetGameAndUIInputMode();
 	void HandleToggleInventoryHUDInput();
 };

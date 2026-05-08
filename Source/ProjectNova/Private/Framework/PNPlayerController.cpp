@@ -12,7 +12,11 @@ APNPlayerController::APNPlayerController()
 {
 	bReplicates = true;
 
-	PlayerHUDWidgetClass = UPNInventoryHUDWidget::StaticClass();
+	PlayerHUDWidgetClass = UPNPlayerHUDWidget::StaticClass();
+	InventoryHUDWidgetClass = UPNInventoryHUDWidget::StaticClass();
+
+	PlayerHUDZOrder = 0;
+	InventoryHUDZOrder = 10;
 }
 
 void APNPlayerController::BeginPlay()
@@ -24,6 +28,7 @@ void APNPlayerController::BeginPlay()
 	if (IsLocalController())
 	{
 		CreatePlayerHUD();
+		CreateInventoryHUD();
 	}
 }
 
@@ -52,7 +57,7 @@ void APNPlayerController::OnPossess(APawn* InPawn)
 
 	if (IsLocalController())
 	{
-		InitializeHUDWidgetForCurrentPawn();
+		InitializeHUDWidgetsForCurrentPawn();
 	}
 }
 
@@ -62,7 +67,7 @@ void APNPlayerController::OnRep_Pawn()
 
 	if (IsLocalController())
 	{
-		InitializeHUDWidgetForCurrentPawn();
+		InitializeHUDWidgetsForCurrentPawn();
 	}
 }
 
@@ -93,7 +98,7 @@ void APNPlayerController::CreatePlayerHUD()
 
 	if (PlayerHUDWidget)
 	{
-		InitializeHUDWidgetForCurrentPawn();
+		InitializePlayerHUDWidgetForCurrentPawn();
 		return;
 	}
 
@@ -111,18 +116,54 @@ void APNPlayerController::CreatePlayerHUD()
 
 	PlayerHUDWidget->AddToViewport(PlayerHUDZOrder);
 
-	InitializeHUDWidgetForCurrentPawn();
+	InitializePlayerHUDWidgetForCurrentPawn();
 }
 
-void APNPlayerController::RemovePlayerHUD()
+void APNPlayerController::CreateInventoryHUD()
 {
-	if (!PlayerHUDWidget)
+	if (!IsLocalController())
 	{
 		return;
 	}
 
-	PlayerHUDWidget->RemoveFromParent();
-	PlayerHUDWidget = nullptr;
+	if (InventoryHUDWidget)
+	{
+		InitializeInventoryHUDWidgetForCurrentPawn();
+		return;
+	}
+
+	TSubclassOf<UPNInventoryHUDWidget> WidgetClassToUse = InventoryHUDWidgetClass;
+	if (!WidgetClassToUse)
+	{
+		WidgetClassToUse = UPNInventoryHUDWidget::StaticClass();
+	}
+
+	InventoryHUDWidget = CreateWidget<UPNInventoryHUDWidget>(this, WidgetClassToUse);
+	if (!InventoryHUDWidget)
+	{
+		return;
+	}
+
+	InventoryHUDWidget->AddToViewport(InventoryHUDZOrder);
+	InventoryHUDWidget->SetInventoryVisible(false);
+	InventoryHUDWidget->SetVisibility(ESlateVisibility::Collapsed);
+
+	InitializeInventoryHUDWidgetForCurrentPawn();
+}
+
+void APNPlayerController::RemovePlayerHUD()
+{
+	if (PlayerHUDWidget)
+	{
+		PlayerHUDWidget->RemoveFromParent();
+		PlayerHUDWidget = nullptr;
+	}
+
+	if (InventoryHUDWidget)
+	{
+		InventoryHUDWidget->RemoveFromParent();
+		InventoryHUDWidget = nullptr;
+	}
 
 	SetGameInputMode();
 }
@@ -132,10 +173,22 @@ void APNPlayerController::RefreshPlayerHUD()
 	if (!PlayerHUDWidget)
 	{
 		CreatePlayerHUD();
-		return;
 	}
 
-	PlayerHUDWidget->RefreshFromHUDComponent();
+	if (!InventoryHUDWidget)
+	{
+		CreateInventoryHUD();
+	}
+
+	if (PlayerHUDWidget)
+	{
+		PlayerHUDWidget->RefreshFromHUDComponent();
+	}
+
+	if (InventoryHUDWidget)
+	{
+		InventoryHUDWidget->RefreshFromHUDComponent();
+	}
 }
 
 void APNPlayerController::SetInventoryHUDVisible(bool bVisible)
@@ -145,25 +198,27 @@ void APNPlayerController::SetInventoryHUDVisible(bool bVisible)
 		return;
 	}
 
-	if (!PlayerHUDWidget)
+	if (!InventoryHUDWidget)
 	{
-		CreatePlayerHUD();
+		CreateInventoryHUD();
 	}
 
-	if (!PlayerHUDWidget)
+	if (!InventoryHUDWidget)
 	{
 		return;
 	}
 
-	PlayerHUDWidget->SetInventoryVisible(bVisible);
+	InventoryHUDWidget->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	InventoryHUDWidget->SetInventoryVisible(bVisible);
 
 	if (bVisible)
 	{
-		PlayerHUDWidget->RefreshFromHUDComponent();
+		InventoryHUDWidget->RefreshFromHUDComponent();
+
 		SetGameAndUIInputMode();
 
-		PlayerHUDWidget->SetUserFocus(this);
-		PlayerHUDWidget->SetKeyboardFocus();
+		InventoryHUDWidget->SetUserFocus(this);
+		InventoryHUDWidget->SetKeyboardFocus();
 	}
 	else
 	{
@@ -178,22 +233,27 @@ void APNPlayerController::ToggleInventoryHUD()
 		return;
 	}
 
-	if (!PlayerHUDWidget)
+	if (!InventoryHUDWidget)
 	{
-		CreatePlayerHUD();
+		CreateInventoryHUD();
 	}
 
-	if (!PlayerHUDWidget)
+	if (!InventoryHUDWidget)
 	{
 		return;
 	}
 
-	SetInventoryHUDVisible(!PlayerHUDWidget->IsInventoryVisible());
+	SetInventoryHUDVisible(!InventoryHUDWidget->IsInventoryVisible());
 }
 
 UPNPlayerHUDWidget* APNPlayerController::GetPlayerHUDWidget() const
 {
 	return PlayerHUDWidget;
+}
+
+UPNInventoryHUDWidget* APNPlayerController::GetInventoryHUDWidget() const
+{
+	return InventoryHUDWidget;
 }
 
 void APNPlayerController::RequestRespawn()
@@ -205,6 +265,42 @@ void APNPlayerController::RequestRespawn()
 	}
 
 	Server_RequestRespawn();
+}
+
+void APNPlayerController::InitializeHUDWidgetsForCurrentPawn()
+{
+	InitializePlayerHUDWidgetForCurrentPawn();
+	InitializeInventoryHUDWidgetForCurrentPawn();
+}
+
+void APNPlayerController::InitializePlayerHUDWidgetForCurrentPawn()
+{
+	if (!PlayerHUDWidget)
+	{
+		return;
+	}
+
+	APNBaseCharacter* PNCharacter = GetPNBaseCharacter();
+	UPNPlayerHUDComponent* PlayerHUDComponent = PNCharacter
+		? PNCharacter->GetPlayerHUDComponent()
+		: nullptr;
+
+	PlayerHUDWidget->InitializeWithHUDComponent(PlayerHUDComponent);
+}
+
+void APNPlayerController::InitializeInventoryHUDWidgetForCurrentPawn()
+{
+	if (!InventoryHUDWidget)
+	{
+		return;
+	}
+
+	APNBaseCharacter* PNCharacter = GetPNBaseCharacter();
+	UPNPlayerHUDComponent* PlayerHUDComponent = PNCharacter
+		? PNCharacter->GetPlayerHUDComponent()
+		: nullptr;
+
+	InventoryHUDWidget->InitializeWithHUDComponent(PlayerHUDComponent);
 }
 
 void APNPlayerController::Server_RequestRespawn_Implementation()
@@ -248,9 +344,9 @@ void APNPlayerController::SetGameAndUIInputMode()
 {
 	FInputModeGameAndUI InputMode;
 
-	if (PlayerHUDWidget)
+	if (InventoryHUDWidget)
 	{
-		InputMode.SetWidgetToFocus(PlayerHUDWidget->TakeWidget());
+		InputMode.SetWidgetToFocus(InventoryHUDWidget->TakeWidget());
 	}
 
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
