@@ -692,7 +692,9 @@ void UPNInventoryGridWidget::RebuildNativeSlots()
 			GridFrameColor,
 			FVector2D(SlotSize, SlotSize)
 		);
-		OuterBorder->SetPadding(FMargin(1.0f));
+
+		// Убираем внутренний padding между слотами
+		OuterBorder->SetPadding(FMargin(0.0f));
 
 		UBorder* InnerBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 
@@ -719,7 +721,7 @@ void UPNInventoryGridWidget::RebuildNativeSlots()
 			InnerBorder,
 			SlotTexture,
 			FillColor,
-			FVector2D(SlotSize - 2.0f, SlotSize - 2.0f)
+			FVector2D(SlotSize, SlotSize)
 		);
 
 		OuterBorder->SetContent(InnerBorder);
@@ -751,7 +753,10 @@ void UPNInventoryGridWidget::RebuildNativeItems()
 		ItemSizeBox->SetHeightOverride(VisualData.PixelSize.Y);
 
 		UBorder* ItemBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		ItemBorder->SetPadding(FMargin(2.0f));
+
+		// Убираем внутренний padding у предмета, чтобы он не ломал сетку
+		ItemBorder->SetPadding(FMargin(0.0f));
+
 		ApplyTextureToBorder(
 			ItemBorder,
 			nullptr,
