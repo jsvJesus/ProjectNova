@@ -115,6 +115,12 @@ void APNBaseCharacter::BeginPlay()
 	ApplyModularCharacterMeshes();
 	ApplyMovementSpeed();
 
+	if (PlayerHUDComponent)
+	{
+		PlayerHUDComponent->SetOwnerCharacter(this);
+		PlayerHUDComponent->RefreshHUDData();
+	}
+
 	if (EquipmentComponent)
 	{
 		EquipmentComponent->OnEquipmentChanged.AddUniqueDynamic(this, &APNBaseCharacter::HandleEquipmentChanged);

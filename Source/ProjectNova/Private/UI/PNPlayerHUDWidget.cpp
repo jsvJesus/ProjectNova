@@ -15,15 +15,19 @@
 #include "Engine/Texture2D.h"
 #include "Items/PNItemDataAsset.h"
 #include "UI/PNPlayerHUDComponent.h"
+#include "Framework/PNPlayerController.h"
+#include "InputCoreTypes.h"
 
 UPNPlayerHUDWidget::UPNPlayerHUDWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	SetIsFocusable(true);
 }
 
 void UPNPlayerHUDWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	SetIsFocusable(true);
 
 	if (bBuildNativeLayout)
 	{
@@ -40,6 +44,42 @@ void UPNPlayerHUDWidget::NativeDestruct()
 	UnbindFromHUDComponent();
 
 	Super::NativeDestruct();
+}
+
+FReply UPNPlayerHUDWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+	const FKey PressedKey = InKeyEvent.GetKey();
+
+	APNPlayerController* PNPlayerController = Cast<APNPlayerController>(GetOwningPlayer());
+
+	if (PressedKey == EKeys::I)
+	{
+		if (PNPlayerController)
+		{
+			PNPlayerController->ToggleInventoryHUD();
+			return FReply::Handled();
+		}
+
+		ToggleInventoryVisible();
+		return FReply::Handled();
+	}
+
+	if (PressedKey == EKeys::Escape)
+	{
+		if (IsInventoryVisible())
+		{
+			if (PNPlayerController)
+			{
+				PNPlayerController->SetInventoryHUDVisible(false);
+				return FReply::Handled();
+			}
+
+			SetInventoryVisible(false);
+			return FReply::Handled();
+		}
+	}
+
+	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
 void UPNPlayerHUDWidget::InitializeWithHUDComponent(UPNPlayerHUDComponent* InHUDComponent)

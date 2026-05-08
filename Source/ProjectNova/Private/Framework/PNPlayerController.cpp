@@ -31,10 +31,19 @@ void APNPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
-	if (InputComponent)
+	if (!InputComponent)
 	{
-		InputComponent->BindKey(EKeys::I, IE_Pressed, this, &APNPlayerController::ToggleInventoryHUD);
+		return;
 	}
+
+	FInputKeyBinding ToggleInventoryKeyBinding(EKeys::I, IE_Pressed);
+	ToggleInventoryKeyBinding.KeyDelegate.GetDelegateForManualSet().BindUObject(
+		this,
+		&APNPlayerController::HandleToggleInventoryHUDInput
+	);
+	ToggleInventoryKeyBinding.bConsumeInput = true;
+
+	InputComponent->KeyBindings.Add(ToggleInventoryKeyBinding);
 }
 
 void APNPlayerController::OnPossess(APawn* InPawn)
@@ -131,6 +140,11 @@ void APNPlayerController::RefreshPlayerHUD()
 
 void APNPlayerController::SetInventoryHUDVisible(bool bVisible)
 {
+	if (!IsLocalController())
+	{
+		return;
+	}
+
 	if (!PlayerHUDWidget)
 	{
 		CreatePlayerHUD();
@@ -145,7 +159,11 @@ void APNPlayerController::SetInventoryHUDVisible(bool bVisible)
 
 	if (bVisible)
 	{
+		PlayerHUDWidget->RefreshFromHUDComponent();
 		SetGameAndUIInputMode();
+
+		PlayerHUDWidget->SetUserFocus(this);
+		PlayerHUDWidget->SetKeyboardFocus();
 	}
 	else
 	{
@@ -155,6 +173,11 @@ void APNPlayerController::SetInventoryHUDVisible(bool bVisible)
 
 void APNPlayerController::ToggleInventoryHUD()
 {
+	if (!IsLocalController())
+	{
+		return;
+	}
+
 	if (!PlayerHUDWidget)
 	{
 		CreatePlayerHUD();
@@ -224,10 +247,21 @@ void APNPlayerController::InitializeHUDWidgetForCurrentPawn()
 void APNPlayerController::SetGameAndUIInputMode()
 {
 	FInputModeGameAndUI InputMode;
+
+	if (PlayerHUDWidget)
+	{
+		InputMode.SetWidgetToFocus(PlayerHUDWidget->TakeWidget());
+	}
+
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	InputMode.SetHideCursorDuringCapture(false);
 
 	SetInputMode(InputMode);
 
 	bShowMouseCursor = true;
+}
+
+void APNPlayerController::HandleToggleInventoryHUDInput()
+{
+	ToggleInventoryHUD();
 }

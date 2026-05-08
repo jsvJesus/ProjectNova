@@ -73,4 +73,5 @@ public:
 protected:
 	void InitializeHUDWidgetForCurrentPawn();
 	void SetGameAndUIInputMode();
+	void HandleToggleInventoryHUDInput();
 };
