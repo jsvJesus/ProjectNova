@@ -181,6 +181,48 @@ void UPNInventoryGridWidget::SetInventoryData(const FPNHUDInventoryPanelData& In
 	BP_OnInventoryDataUpdated(InventoryData);
 }
 
+void UPNInventoryGridWidget::CopyVisualStyleFrom(const UPNInventoryGridWidget* SourceWidget)
+{
+	if (!SourceWidget || SourceWidget == this)
+	{
+		return;
+	}
+
+	RootBackgroundTexture = SourceWidget->RootBackgroundTexture;
+	HeaderBackgroundTexture = SourceWidget->HeaderBackgroundTexture;
+	SlotUnlockedTexture = SourceWidget->SlotUnlockedTexture;
+	SlotLockedTexture = SourceWidget->SlotLockedTexture;
+	SlotOccupiedTexture = SourceWidget->SlotOccupiedTexture;
+
+	RootBackgroundColor = SourceWidget->RootBackgroundColor;
+	HeaderBackgroundColor = SourceWidget->HeaderBackgroundColor;
+	SlotUnlockedColor = SourceWidget->SlotUnlockedColor;
+	SlotLockedColor = SourceWidget->SlotLockedColor;
+	SlotOccupiedColor = SourceWidget->SlotOccupiedColor;
+	TextColor = SourceWidget->TextColor;
+	CounterTextColor = SourceWidget->CounterTextColor;
+
+	SlotSize = SourceWidget->SlotSize;
+	SlotPadding = SourceWidget->SlotPadding;
+	HeaderHeight = SourceWidget->HeaderHeight;
+	RootPadding = SourceWidget->RootPadding;
+
+	HeaderAccentWidth = SourceWidget->HeaderAccentWidth;
+	TitleFontSize = SourceWidget->TitleFontSize;
+	CounterFontSize = SourceWidget->CounterFontSize;
+	HeaderBottomSpacing = SourceWidget->HeaderBottomSpacing;
+	GridFramePadding = SourceWidget->GridFramePadding;
+
+	HeaderAccentColor = SourceWidget->HeaderAccentColor;
+	GridFrameColor = SourceWidget->GridFrameColor;
+	GridBackgroundColor = SourceWidget->GridBackgroundColor;
+
+	if (bBuildNativeGrid)
+	{
+		RefreshNativeGrid();
+	}
+}
+
 void UPNInventoryGridWidget::RefreshNativeGrid()
 {
 	if (!bBuildNativeGrid || !WidgetTree)
@@ -216,6 +258,11 @@ float UPNInventoryGridWidget::GetSlotSize() const
 
 FText UPNInventoryGridWidget::GetDisplayTitle() const
 {
+	if (!InventoryData.DisplayTitle.IsEmpty())
+	{
+		return InventoryData.DisplayTitle;
+	}
+
 	if (!DisplayTitle.IsEmpty())
 	{
 		return DisplayTitle;
@@ -227,7 +274,7 @@ FText UPNInventoryGridWidget::GetDisplayTitle() const
 		return FText::FromString(TEXT("Inventory"));
 
 	case EPNHUDInventoryPanel::Vest:
-		return FText::FromString(TEXT("Vest"));
+		return FText::FromString(TEXT("Armor"));
 
 	case EPNHUDInventoryPanel::Backpack:
 		return FText::FromString(TEXT("Backpack"));
@@ -238,6 +285,21 @@ FText UPNInventoryGridWidget::GetDisplayTitle() const
 	default:
 		return FText::FromString(TEXT("Inventory"));
 	}
+}
+
+UTexture2D* UPNInventoryGridWidget::GetHeaderIconTexture() const
+{
+	if (!InventoryData.DisplayIcon.IsNull())
+	{
+		return InventoryData.DisplayIcon.LoadSynchronous();
+	}
+
+	if (!DisplayIcon.IsNull())
+	{
+		return DisplayIcon.LoadSynchronous();
+	}
+
+	return nullptr;
 }
 
 FText UPNInventoryGridWidget::GetSlotCounterText() const
@@ -264,6 +326,11 @@ int32 UPNInventoryGridWidget::GetUnlockedSlotCount() const
 
 int32 UPNInventoryGridWidget::GetMaxVisualSlotCount() const
 {
+	if (InventoryData.bIsActive && InventoryData.SlotCount > 0)
+	{
+		return InventoryData.SlotCount;
+	}
+
 	return FMath::Max(1, MaxSupportedSlotCount);
 }
 
@@ -470,20 +537,20 @@ void UPNInventoryGridWidget::BuildNativeGridRoot()
 		HeaderBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		HeaderBorder->SetContent(HeaderBox);
 
-		// LEFT RED ACCENT
-		USizeBox* AccentSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-		AccentSizeBox->SetWidthOverride(HeaderAccentWidth);
-		AccentSizeBox->SetHeightOverride(HeaderHeight);
+		// HEADER ICON
+		USizeBox* IconSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+		IconSizeBox->SetWidthOverride(HeaderAccentWidth);
+		IconSizeBox->SetHeightOverride(HeaderHeight);
 
-		UBorder* AccentBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		ApplyTextureToBorder(AccentBorder, nullptr, HeaderAccentColor, FVector2D(HeaderAccentWidth, HeaderHeight));
-		AccentSizeBox->AddChild(AccentBorder);
+		HeaderIconImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+		HeaderIconImage->SetColorAndOpacity(FLinearColor::White);
+		IconSizeBox->AddChild(HeaderIconImage);
 
-		if (UHorizontalBoxSlot* AccentSlot = HeaderBox->AddChildToHorizontalBox(AccentSizeBox))
+		if (UHorizontalBoxSlot* IconSlot = HeaderBox->AddChildToHorizontalBox(IconSizeBox))
 		{
-			AccentSlot->SetPadding(FMargin(0.0f));
-			AccentSlot->SetHorizontalAlignment(HAlign_Left);
-			AccentSlot->SetVerticalAlignment(VAlign_Fill);
+			IconSlot->SetPadding(FMargin(0.0f));
+			IconSlot->SetHorizontalAlignment(HAlign_Left);
+			IconSlot->SetVerticalAlignment(VAlign_Fill);
 		}
 
 		// TITLE
@@ -591,7 +658,13 @@ void UPNInventoryGridWidget::UpdateNativeHeader()
 
 	if (HeaderIconImage)
 	{
-		HeaderIconImage->SetVisibility(ESlateVisibility::Collapsed);
+		UTexture2D* HeaderIconTexture = GetHeaderIconTexture();
+		HeaderIconImage->SetColorAndOpacity(FLinearColor::White);
+		ApplyTextureToImage(
+			HeaderIconImage,
+			HeaderIconTexture,
+			FVector2D(HeaderAccentWidth, HeaderHeight)
+		);
 	}
 }
 

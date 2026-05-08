@@ -77,7 +77,8 @@ protected:
 
 	FPNHUDInventoryPanelData BuildInventoryPanelData(
 		UPNInventoryComponent* InventoryComponent,
-		EPNHUDInventoryPanel Panel
+		EPNHUDInventoryPanel Panel,
+		UPNItemDataAsset* SourceItemData = nullptr
 	) const;
 
 	FPNHUDItemViewData BuildItemViewDataFromRep(const FPNRepItemInstanceData& InstanceData) const;

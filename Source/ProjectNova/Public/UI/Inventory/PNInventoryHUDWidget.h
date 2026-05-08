@@ -88,6 +88,8 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "ProjectNova|Inventory HUD")
 	void BP_OnActivePageChanged(EPNInventoryHUDPage NewPage);
 
+	void ApplySharedInventoryGridStyle();
+
 protected:
 	void BindNavigation();
 	void UnbindNavigation();

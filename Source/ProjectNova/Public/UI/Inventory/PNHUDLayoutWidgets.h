@@ -291,6 +291,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Style")
 	FLinearColor GridBackgroundColor = FLinearColor(0.28f, 0.28f, 0.28f, 1.0f);
 
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Style")
+	void CopyVisualStyleFrom(const UPNInventoryGridWidget* SourceWidget);
+
 protected:
 	UPROPERTY(Transient)
 	TObjectPtr<USizeBox> RootSizeBox = nullptr;
@@ -399,6 +402,8 @@ protected:
 	void ApplyTextureToBorder(UBorder* TargetBorder, UTexture2D* Texture, const FLinearColor& Color, const FVector2D& ImageSize) const;
 
 	bool FindItemAtPosition(const FPNInventoryGridPosition& Position, FPNHUDInventoryItemData& OutItem, bool& bOutRootSlot) const;
+
+	UTexture2D* GetHeaderIconTexture() const;
 };
 
 UCLASS(BlueprintType, Blueprintable)

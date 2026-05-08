@@ -120,6 +120,7 @@ void UPNInventoryHUDWidget::UnbindNavigation()
 
 void UPNInventoryHUDWidget::PushHUDDataToLayouts()
 {
+	ApplySharedInventoryGridStyle();
 	const FPNPlayerHUDSnapshot& HUDData = GetHUDData();
 
 	if (NavigationLayout)
@@ -175,6 +176,24 @@ void UPNInventoryHUDWidget::PushHUDDataToLayouts()
 	}
 }
 
+void UPNInventoryHUDWidget::ApplySharedInventoryGridStyle()
+{
+	if (!InventoryLayout)
+	{
+		return;
+	}
+
+	if (VestInventoryLayout)
+	{
+		VestInventoryLayout->CopyVisualStyleFrom(InventoryLayout);
+	}
+
+	if (BackpackInventoryLayout)
+	{
+		BackpackInventoryLayout->CopyVisualStyleFrom(InventoryLayout);
+	}
+}
+
 void UPNInventoryHUDWidget::PushPlayerInfoToLayout()
 {
 	if (PlayerInfoLayout)
@@ -193,12 +212,13 @@ void UPNInventoryHUDWidget::ApplyPageVisibility()
 	const bool bMissionsVisible = bRootVisible && ActivePage == EPNInventoryHUDPage::Missions;
 	const bool bMapVisible = bRootVisible && ActivePage == EPNInventoryHUDPage::Map;
 	const bool bOptionsVisible = bRootVisible && ActivePage == EPNInventoryHUDPage::Options;
+	const FPNPlayerHUDSnapshot& HUDData = GetHUDData();
 
 	SetLayoutVisible(NavigationLayout, bRootVisible);
 
-	SetLayoutVisible(InventoryLayout, bInventoryPageVisible);
-	SetLayoutVisible(VestInventoryLayout, bInventoryPageVisible);
-	SetLayoutVisible(BackpackInventoryLayout, bInventoryPageVisible);
+	SetLayoutVisible(InventoryLayout, bInventoryPageVisible && HUDData.MainInventory.bIsActive);
+	SetLayoutVisible(VestInventoryLayout, bInventoryPageVisible && HUDData.VestInventory.bIsActive);
+	SetLayoutVisible(BackpackInventoryLayout, bInventoryPageVisible && HUDData.BackpackInventory.bIsActive);
 	SetLayoutVisible(EquipmentLayout, bInventoryPageVisible);
 	SetLayoutVisible(ContainerLayout, bInventoryPageVisible);
 	SetLayoutVisible(QuickSlotLayout, bInventoryPageVisible);

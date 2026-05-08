@@ -268,8 +268,27 @@ void APNBaseCharacter::ApplyBackpackInventoryFromEquipment()
 		return;
 	}
 
-	const int32 SlotCount = FMath::Max(1, BackpackData->BackpackStats.MaxSlots);
+	const int32 SlotCount = FMath::Max(0, BackpackData->BackpackStats.MaxSlots);
 	const float MaxWeight = FMath::Max(0.0f, BackpackData->BackpackStats.MaxWeight);
+
+	if (SlotCount <= 0)
+	{
+		if (BackpackInventoryComponent->GetInventoryItemCount() > 0)
+		{
+			return;
+		}
+
+		InitializeEquipmentInventory(
+			BackpackInventoryComponent,
+			EPNInventoryType::Backpack,
+			1,
+			1,
+			0.0f,
+			false
+		);
+
+		return;
+	}
 
 	InitializeEquipmentInventory(
 		BackpackInventoryComponent,
@@ -311,10 +330,35 @@ void APNBaseCharacter::ApplyVestInventoryFromEquipment()
 		return;
 	}
 
+	const int32 ArmorUnlockedSlots = ArmorData->ArmorStats.Slots.DefaultUnlockedSlots > 0
+		? ArmorData->ArmorStats.Slots.DefaultUnlockedSlots
+		: ArmorData->ArmorStats.Slots.MaxSlots;
+
+	const int32 SlotCount = FMath::Max(0, ArmorUnlockedSlots);
+
+	if (SlotCount <= 0)
+	{
+		if (VestInventoryComponent->GetInventoryItemCount() > 0)
+		{
+			return;
+		}
+
+		InitializeEquipmentInventory(
+			VestInventoryComponent,
+			EPNInventoryType::Vest,
+			1,
+			1,
+			0.0f,
+			false
+		);
+
+		return;
+	}
+
 	InitializeEquipmentInventory(
 		VestInventoryComponent,
 		EPNInventoryType::Vest,
-		DefaultVestInventorySlots,
+		SlotCount,
 		DefaultVestInventoryColumns,
 		DefaultVestInventoryMaxWeight,
 		true
@@ -335,10 +379,24 @@ void APNBaseCharacter::InitializeEquipmentInventory(
 		return;
 	}
 
+	const int32 SafeSlotCount = FMath::Max(1, SlotCount);
+	const int32 PreferredColumns = FMath::Clamp(Columns, 1, SafeSlotCount);
+
+	int32 ExactColumns = PreferredColumns;
+
+	for (int32 CandidateColumns = PreferredColumns; CandidateColumns >= 1; --CandidateColumns)
+	{
+		if (SafeSlotCount % CandidateColumns == 0)
+		{
+			ExactColumns = CandidateColumns;
+			break;
+		}
+	}
+
 	FPNInventorySettings NewSettings;
 	NewSettings.InventoryType = InventoryType;
-	NewSettings.GridSize.Columns = FMath::Max(1, Columns);
-	NewSettings.GridSize.Rows = CalculateRowsFromSlotCount(SlotCount, NewSettings.GridSize.Columns);
+	NewSettings.GridSize.Columns = ExactColumns;
+	NewSettings.GridSize.Rows = SafeSlotCount / ExactColumns;
 
 	NewSettings.bUseWeightLimit = MaxWeight > 0.0f;
 	NewSettings.MaxWeight = FMath::Max(0.0f, MaxWeight);

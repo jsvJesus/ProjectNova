@@ -6,6 +6,7 @@
 #include "PNHUDTypes.generated.h"
 
 class UPNItemDataAsset;
+class UTexture2D;
 
 UENUM(BlueprintType)
 enum class EPNHUDInventoryPanel : uint8
@@ -103,6 +104,12 @@ struct PROJECTNOVA_API FPNHUDInventoryPanelData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory")
 	EPNInventoryType InventoryType = EPNInventoryType::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory")
+	FText DisplayTitle;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory")
+	TSoftObjectPtr<UTexture2D> DisplayIcon;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory")
 	bool bIsActive = false;
