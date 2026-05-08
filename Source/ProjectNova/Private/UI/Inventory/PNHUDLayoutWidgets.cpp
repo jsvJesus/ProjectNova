@@ -16,6 +16,7 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Items/PNItemDataAsset.h"
 #include "Styling/CoreStyle.h"
+#include "Widgets/SWidget.h"
 
 UPNHUDLayoutWidget::UPNHUDLayoutWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -93,6 +94,52 @@ void UPNNavigationLayoutWidget::RequestOptionsPage()
 UPNInventoryGridWidget::UPNInventoryGridWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+}
+
+TSharedRef<SWidget> UPNInventoryGridWidget::RebuildWidget()
+{
+	if (bBuildNativeGrid && WidgetTree)
+	{
+		RootSizeBox = nullptr;
+		RootBorder = nullptr;
+		RootVerticalBox = nullptr;
+		HeaderBox = nullptr;
+		HeaderIconImage = nullptr;
+		HeaderTitleText = nullptr;
+		HeaderCounterText = nullptr;
+		GridSizeBox = nullptr;
+		GridOverlay = nullptr;
+		SlotGridPanel = nullptr;
+		ItemCanvasPanel = nullptr;
+		HeaderBorder = nullptr;
+		GridBorder = nullptr;
+
+		BuildNativeGridRoot();
+		UpdateNativeHeader();
+		RebuildNativeSlots();
+		RebuildNativeItems();
+	}
+
+	return Super::RebuildWidget();
+}
+
+void UPNInventoryGridWidget::ReleaseSlateResources(bool bReleaseChildren)
+{
+	Super::ReleaseSlateResources(bReleaseChildren);
+
+	RootSizeBox = nullptr;
+	RootBorder = nullptr;
+	RootVerticalBox = nullptr;
+	HeaderBox = nullptr;
+	HeaderIconImage = nullptr;
+	HeaderTitleText = nullptr;
+	HeaderCounterText = nullptr;
+	GridSizeBox = nullptr;
+	GridOverlay = nullptr;
+	SlotGridPanel = nullptr;
+	ItemCanvasPanel = nullptr;
+	HeaderBorder = nullptr;
+	GridBorder = nullptr;
 }
 
 void UPNInventoryGridWidget::NativePreConstruct()
@@ -499,7 +546,7 @@ void UPNInventoryGridWidget::BuildNativeGridRoot()
 		ApplyTextureToBorder(
 			RootBorder,
 			RootBackgroundTexture.LoadSynchronous(),
-			FLinearColor::Transparent,
+			RootBackgroundColor,
 			FVector2D(TotalWidth, TotalHeight)
 		);
 	}

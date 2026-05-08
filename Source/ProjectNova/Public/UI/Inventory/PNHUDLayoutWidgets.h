@@ -181,6 +181,9 @@ public:
 	UPNInventoryGridWidget(const FObjectInitializer& ObjectInitializer);
 
 protected:
+	virtual TSharedRef<SWidget> RebuildWidget() override;
+	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	
 	virtual void NativePreConstruct() override;
 	virtual void NativeConstruct() override;
 
