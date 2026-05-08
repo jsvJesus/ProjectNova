@@ -396,6 +396,8 @@ void UPNInventoryGridWidget::BuildNativeGridRoot()
 	}
 
 	const FVector2D GridSize = GetVisualGridSize();
+	const float TotalWidth = GridSize.X;
+	const float TotalHeight = HeaderHeight + HeaderBottomSpacing + GridSize.Y;
 
 	if (!RootSizeBox)
 	{
@@ -403,52 +405,75 @@ void UPNInventoryGridWidget::BuildNativeGridRoot()
 		WidgetTree->RootWidget = RootSizeBox;
 
 		RootBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		RootBorder->SetPadding(FMargin(RootPadding));
+		RootBorder->SetPadding(FMargin(0.0f));
 		RootSizeBox->AddChild(RootBorder);
 
 		RootVerticalBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		RootBorder->SetContent(RootVerticalBox);
 
+		// HEADER BORDER
+		HeaderBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		HeaderBorder->SetPadding(FMargin(0.0f));
+
+		if (UVerticalBoxSlot* HeaderVBoxSlot = RootVerticalBox->AddChildToVerticalBox(HeaderBorder))
+		{
+			HeaderVBoxSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, HeaderBottomSpacing));
+		}
+
 		HeaderBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		HeaderBorder->SetContent(HeaderBox);
 
-		if (UVerticalBoxSlot* HeaderSlot = RootVerticalBox->AddChildToVerticalBox(HeaderBox))
+		// LEFT RED ACCENT
+		USizeBox* AccentSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+		AccentSizeBox->SetWidthOverride(HeaderAccentWidth);
+		AccentSizeBox->SetHeightOverride(HeaderHeight);
+
+		UBorder* AccentBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		ApplyTextureToBorder(AccentBorder, nullptr, HeaderAccentColor, FVector2D(HeaderAccentWidth, HeaderHeight));
+		AccentSizeBox->AddChild(AccentBorder);
+
+		if (UHorizontalBoxSlot* AccentSlot = HeaderBox->AddChildToHorizontalBox(AccentSizeBox))
 		{
-			HeaderSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 4.0f));
+			AccentSlot->SetPadding(FMargin(0.0f));
+			AccentSlot->SetHorizontalAlignment(HAlign_Left);
+			AccentSlot->SetVerticalAlignment(VAlign_Fill);
 		}
 
-		HeaderIconImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-		HeaderIconImage->SetDesiredSizeOverride(FVector2D(HeaderHeight, HeaderHeight));
-
-		if (UHorizontalBoxSlot* IconSlot = HeaderBox->AddChildToHorizontalBox(HeaderIconImage))
-		{
-			IconSlot->SetPadding(FMargin(0.0f, 0.0f, 6.0f, 0.0f));
-			IconSlot->SetVerticalAlignment(VAlign_Center);
-		}
-
+		// TITLE
 		HeaderTitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		HeaderTitleText->SetColorAndOpacity(FSlateColor(TextColor));
+		HeaderTitleText->SetJustification(ETextJustify::Left);
 
 		if (UHorizontalBoxSlot* TitleSlot = HeaderBox->AddChildToHorizontalBox(HeaderTitleText))
 		{
 			TitleSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+			TitleSlot->SetPadding(FMargin(12.0f, 0.0f, 8.0f, 0.0f));
 			TitleSlot->SetVerticalAlignment(VAlign_Center);
 		}
 
+		// COUNTER
 		HeaderCounterText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		HeaderCounterText->SetColorAndOpacity(FSlateColor(CounterTextColor));
+		HeaderCounterText->SetJustification(ETextJustify::Right);
 
 		if (UHorizontalBoxSlot* CounterSlot = HeaderBox->AddChildToHorizontalBox(HeaderCounterText))
 		{
-			CounterSlot->SetPadding(FMargin(8.0f, 0.0f, 0.0f, 0.0f));
+			CounterSlot->SetPadding(FMargin(8.0f, 0.0f, 12.0f, 0.0f));
+			CounterSlot->SetHorizontalAlignment(HAlign_Right);
 			CounterSlot->SetVerticalAlignment(VAlign_Center);
 		}
 
-		GridSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+		// GRID BORDER
+		GridBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		GridBorder->SetPadding(FMargin(GridFramePadding));
 
-		if (UVerticalBoxSlot* GridSlot = RootVerticalBox->AddChildToVerticalBox(GridSizeBox))
+		if (UVerticalBoxSlot* GridVBoxSlot = RootVerticalBox->AddChildToVerticalBox(GridBorder))
 		{
-			GridSlot->SetPadding(FMargin(0.0f));
+			GridVBoxSlot->SetPadding(FMargin(0.0f));
 		}
+
+		GridSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+		GridBorder->SetContent(GridSizeBox);
 
 		GridOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
 		GridSizeBox->AddChild(GridOverlay);
@@ -460,8 +485,8 @@ void UPNInventoryGridWidget::BuildNativeGridRoot()
 		GridOverlay->AddChild(ItemCanvasPanel);
 	}
 
-	RootSizeBox->SetWidthOverride(GridSize.X + RootPadding * 2.0f);
-	RootSizeBox->SetHeightOverride(GridSize.Y + HeaderHeight + 4.0f + RootPadding * 2.0f);
+	RootSizeBox->SetWidthOverride(TotalWidth);
+	RootSizeBox->SetHeightOverride(TotalHeight);
 
 	if (GridSizeBox)
 	{
@@ -474,32 +499,50 @@ void UPNInventoryGridWidget::BuildNativeGridRoot()
 		ApplyTextureToBorder(
 			RootBorder,
 			RootBackgroundTexture.LoadSynchronous(),
-			RootBackgroundColor,
-			FVector2D(GridSize.X + RootPadding * 2.0f, GridSize.Y + HeaderHeight + RootPadding * 2.0f)
+			FLinearColor::Transparent,
+			FVector2D(TotalWidth, TotalHeight)
+		);
+	}
+
+	if (HeaderBorder)
+	{
+		ApplyTextureToBorder(
+			HeaderBorder,
+			HeaderBackgroundTexture.LoadSynchronous(),
+			HeaderBackgroundColor,
+			FVector2D(TotalWidth, HeaderHeight)
+		);
+	}
+
+	if (GridBorder)
+	{
+		ApplyTextureToBorder(
+			GridBorder,
+			nullptr,
+			GridFrameColor,
+			FVector2D(GridSize.X, GridSize.Y)
 		);
 	}
 }
 
 void UPNInventoryGridWidget::UpdateNativeHeader()
 {
-	if (!HeaderTitleText || !HeaderCounterText || !HeaderIconImage)
+	if (!HeaderTitleText || !HeaderCounterText)
 	{
 		return;
 	}
 
-	HeaderTitleText->SetText(GetDisplayTitle());
+	const FString UpperTitle = GetDisplayTitle().ToString().ToUpper();
+
+	HeaderTitleText->SetText(FText::FromString(UpperTitle));
 	HeaderTitleText->SetColorAndOpacity(FSlateColor(TextColor));
+	HeaderTitleText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Bold"), TitleFontSize));
 
 	HeaderCounterText->SetText(GetSlotCounterText());
 	HeaderCounterText->SetColorAndOpacity(FSlateColor(CounterTextColor));
+	HeaderCounterText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Bold"), CounterFontSize));
 
-	UTexture2D* IconTexture = DisplayIcon.LoadSynchronous();
-	if (IconTexture)
-	{
-		ApplyTextureToImage(HeaderIconImage, IconTexture, FVector2D(HeaderHeight, HeaderHeight));
-		HeaderIconImage->SetVisibility(ESlateVisibility::Visible);
-	}
-	else
+	if (HeaderIconImage)
 	{
 		HeaderIconImage->SetVisibility(ESlateVisibility::Collapsed);
 	}
@@ -522,31 +565,45 @@ void UPNInventoryGridWidget::RebuildNativeSlots()
 		SlotSizeBox->SetWidthOverride(SlotSize);
 		SlotSizeBox->SetHeightOverride(SlotSize);
 
-		UBorder* SlotBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		SlotBorder->SetPadding(FMargin(0.0f));
+		UBorder* OuterBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		ApplyTextureToBorder(
+			OuterBorder,
+			nullptr,
+			GridFrameColor,
+			FVector2D(SlotSize, SlotSize)
+		);
+		OuterBorder->SetPadding(FMargin(1.0f));
 
+		UBorder* InnerBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+
+		FLinearColor FillColor = SlotUnlockedColor;
 		UTexture2D* SlotTexture = nullptr;
-		FLinearColor SlotColor = SlotUnlockedColor;
 
 		if (!SlotData.bUnlocked)
 		{
+			FillColor = SlotLockedColor;
 			SlotTexture = SlotLockedTexture.LoadSynchronous();
-			SlotColor = SlotLockedColor;
 		}
 		else if (SlotData.bOccupied)
 		{
+			FillColor = SlotOccupiedColor;
 			SlotTexture = SlotOccupiedTexture.LoadSynchronous();
-			SlotColor = SlotOccupiedColor;
 		}
 		else
 		{
+			FillColor = GridBackgroundColor;
 			SlotTexture = SlotUnlockedTexture.LoadSynchronous();
-			SlotColor = SlotUnlockedColor;
 		}
 
-		ApplyTextureToBorder(SlotBorder, SlotTexture, SlotColor, FVector2D(SlotSize, SlotSize));
+		ApplyTextureToBorder(
+			InnerBorder,
+			SlotTexture,
+			FillColor,
+			FVector2D(SlotSize - 2.0f, SlotSize - 2.0f)
+		);
 
-		SlotSizeBox->AddChild(SlotBorder);
+		OuterBorder->SetContent(InnerBorder);
+		SlotSizeBox->AddChild(OuterBorder);
 
 		if (UUniformGridSlot* UniformSlot = SlotGridPanel->AddChildToUniformGrid(SlotSizeBox, SlotData.Position.Y, SlotData.Position.X))
 		{

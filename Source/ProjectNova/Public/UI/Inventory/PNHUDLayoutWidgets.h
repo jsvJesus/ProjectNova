@@ -264,6 +264,30 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
 	FLinearColor CounterTextColor = FLinearColor(0.72f, 0.76f, 0.78f, 1.0f);
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Style", meta = (ClampMin = "0.0"))
+	float HeaderAccentWidth = 40.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Style", meta = (ClampMin = "1"))
+	int32 TitleFontSize = 18;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Style", meta = (ClampMin = "1"))
+	int32 CounterFontSize = 18;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Style", meta = (ClampMin = "0.0"))
+	float HeaderBottomSpacing = 6.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Style", meta = (ClampMin = "0.0"))
+	float GridFramePadding = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Style")
+	FLinearColor HeaderAccentColor = FLinearColor(0.96f, 0.28f, 0.24f, 1.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Style")
+	FLinearColor GridFrameColor = FLinearColor(0.18f, 0.18f, 0.18f, 1.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Style")
+	FLinearColor GridBackgroundColor = FLinearColor(0.28f, 0.28f, 0.28f, 1.0f);
+
 protected:
 	UPROPERTY(Transient)
 	TObjectPtr<USizeBox> RootSizeBox = nullptr;
@@ -297,6 +321,12 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCanvasPanel> ItemCanvasPanel = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> HeaderBorder = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> GridBorder = nullptr;
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
