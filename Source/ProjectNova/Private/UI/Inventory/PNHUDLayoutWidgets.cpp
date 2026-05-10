@@ -1208,6 +1208,155 @@ const FPNHUDCharacterStatsData& UPNPlayerStatsLayoutWidget::GetStatsData() const
 	return StatsData;
 }
 
+FPNHUDValuePercent UPNPlayerStatsLayoutWidget::GetStatData(EPNHUDCharacterStatType StatType) const
+{
+	switch (StatType)
+	{
+	case EPNHUDCharacterStatType::Health:
+		return StatsData.Health;
+
+	case EPNHUDCharacterStatType::Stamina:
+		return StatsData.Stamina;
+
+	case EPNHUDCharacterStatType::Hunger:
+		return StatsData.Hunger;
+
+	case EPNHUDCharacterStatType::Thirst:
+		return StatsData.Thirst;
+
+	case EPNHUDCharacterStatType::Weight:
+		return StatsData.Weight;
+
+	case EPNHUDCharacterStatType::Radiation:
+		return StatsData.Radiation;
+
+	case EPNHUDCharacterStatType::Toxicity:
+		return StatsData.Toxicity;
+
+	case EPNHUDCharacterStatType::Psy:
+		return StatsData.Psy;
+
+	case EPNHUDCharacterStatType::Bleeding:
+		return StatsData.Bleeding;
+
+	case EPNHUDCharacterStatType::Wounds:
+		return StatsData.Wounds;
+
+	case EPNHUDCharacterStatType::Burn:
+		return StatsData.Burn;
+
+	case EPNHUDCharacterStatType::ChemicalBurn:
+		return StatsData.ChemicalBurn;
+
+	case EPNHUDCharacterStatType::ElectricShock:
+		return StatsData.ElectricShock;
+
+	default:
+		return FPNHUDValuePercent();
+	}
+}
+
+float UPNPlayerStatsLayoutWidget::GetStatPercent(EPNHUDCharacterStatType StatType) const
+{
+	return FMath::Clamp(GetStatData(StatType).Percent, 0.0f, 1.0f);
+}
+
+FText UPNPlayerStatsLayoutWidget::GetStatValueText(EPNHUDCharacterStatType StatType) const
+{
+	const FPNHUDValuePercent Value = GetStatData(StatType);
+
+	if (StatType == EPNHUDCharacterStatType::Weight)
+	{
+		return FText::FromString(
+			FString::Printf(TEXT("%.1f/%.1f kg"), Value.Current, Value.Max)
+		);
+	}
+
+	return FText::FromString(
+		FString::Printf(TEXT("%.0f/%.0f"), Value.Current, Value.Max)
+	);
+}
+
+float UPNPlayerStatsLayoutWidget::GetHealthPercent() const
+{
+	return GetStatPercent(EPNHUDCharacterStatType::Health);
+}
+
+FText UPNPlayerStatsLayoutWidget::GetHealthValueText() const
+{
+	return GetStatValueText(EPNHUDCharacterStatType::Health);
+}
+
+float UPNPlayerStatsLayoutWidget::GetStaminaPercent() const
+{
+	return GetStatPercent(EPNHUDCharacterStatType::Stamina);
+}
+
+FText UPNPlayerStatsLayoutWidget::GetStaminaValueText() const
+{
+	return GetStatValueText(EPNHUDCharacterStatType::Stamina);
+}
+
+float UPNPlayerStatsLayoutWidget::GetHungerPercent() const
+{
+	return GetStatPercent(EPNHUDCharacterStatType::Hunger);
+}
+
+FText UPNPlayerStatsLayoutWidget::GetHungerValueText() const
+{
+	return GetStatValueText(EPNHUDCharacterStatType::Hunger);
+}
+
+float UPNPlayerStatsLayoutWidget::GetThirstPercent() const
+{
+	return GetStatPercent(EPNHUDCharacterStatType::Thirst);
+}
+
+FText UPNPlayerStatsLayoutWidget::GetThirstValueText() const
+{
+	return GetStatValueText(EPNHUDCharacterStatType::Thirst);
+}
+
+float UPNPlayerStatsLayoutWidget::GetWeightPercent() const
+{
+	return GetStatPercent(EPNHUDCharacterStatType::Weight);
+}
+
+FText UPNPlayerStatsLayoutWidget::GetWeightValueText() const
+{
+	return GetStatValueText(EPNHUDCharacterStatType::Weight);
+}
+
+float UPNPlayerStatsLayoutWidget::GetRadiationPercent() const
+{
+	return GetStatPercent(EPNHUDCharacterStatType::Radiation);
+}
+
+FText UPNPlayerStatsLayoutWidget::GetRadiationValueText() const
+{
+	return GetStatValueText(EPNHUDCharacterStatType::Radiation);
+}
+
+float UPNPlayerStatsLayoutWidget::GetChemPercent() const
+{
+	return GetStatPercent(EPNHUDCharacterStatType::Toxicity);
+}
+
+FText UPNPlayerStatsLayoutWidget::GetChemValueText() const
+{
+	return GetStatValueText(EPNHUDCharacterStatType::Toxicity);
+}
+
+float UPNPlayerStatsLayoutWidget::GetPsyPercent() const
+{
+	return GetStatPercent(EPNHUDCharacterStatType::Psy);
+}
+
+FText UPNPlayerStatsLayoutWidget::GetPsyValueText() const
+{
+	return GetStatValueText(EPNHUDCharacterStatType::Psy);
+}
+
 void UPNPlayerInfoLayoutWidget::SetPlayerInfoData(const FPNHUDPlayerInfoData& InPlayerInfoData)
 {
 	PlayerInfoData = InPlayerInfoData;

@@ -662,6 +662,25 @@ public:
 	void BP_OnQuickSlotDataUpdated(const FPNHUDQuickSlotData& InQuickSlotData);
 };
 
+UENUM(BlueprintType)
+enum class EPNHUDCharacterStatType : uint8
+{
+	Health       UMETA(DisplayName = "Health"),
+	Stamina      UMETA(DisplayName = "Stamina"),
+	Hunger       UMETA(DisplayName = "Hunger"),
+	Thirst       UMETA(DisplayName = "Thirst"),
+	Weight       UMETA(DisplayName = "Weight"),
+	Radiation    UMETA(DisplayName = "Radiation"),
+	Toxicity     UMETA(DisplayName = "Toxicity / Chem"),
+	Psy          UMETA(DisplayName = "Psy"),
+
+	Bleeding     UMETA(DisplayName = "Bleeding"),
+	Wounds       UMETA(DisplayName = "Wounds"),
+	Burn         UMETA(DisplayName = "Burn"),
+	ChemicalBurn UMETA(DisplayName = "Chemical Burn"),
+	ElectricShock UMETA(DisplayName = "Electric Shock")
+};
+
 UCLASS(BlueprintType, Blueprintable)
 class PROJECTNOVA_API UPNPlayerStatsLayoutWidget : public UPNHUDLayoutWidget
 {
@@ -677,6 +696,63 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Player Stats")
 	const FPNHUDCharacterStatsData& GetStatsData() const;
+
+	UFUNCTION(BlueprintPure, Category = "Player Stats")
+	FPNHUDValuePercent GetStatData(EPNHUDCharacterStatType StatType) const;
+
+	UFUNCTION(BlueprintPure, Category = "Player Stats")
+	float GetStatPercent(EPNHUDCharacterStatType StatType) const;
+
+	UFUNCTION(BlueprintPure, Category = "Player Stats")
+	FText GetStatValueText(EPNHUDCharacterStatType StatType) const;
+
+	UFUNCTION(BlueprintPure, Category = "Player Stats|Health")
+	float GetHealthPercent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Player Stats|Health")
+	FText GetHealthValueText() const;
+
+	UFUNCTION(BlueprintPure, Category = "Player Stats|Stamina")
+	float GetStaminaPercent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Player Stats|Stamina")
+	FText GetStaminaValueText() const;
+
+	UFUNCTION(BlueprintPure, Category = "Player Stats|Hunger")
+	float GetHungerPercent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Player Stats|Hunger")
+	FText GetHungerValueText() const;
+
+	UFUNCTION(BlueprintPure, Category = "Player Stats|Thirst")
+	float GetThirstPercent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Player Stats|Thirst")
+	FText GetThirstValueText() const;
+
+	UFUNCTION(BlueprintPure, Category = "Player Stats|Weight")
+	float GetWeightPercent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Player Stats|Weight")
+	FText GetWeightValueText() const;
+
+	UFUNCTION(BlueprintPure, Category = "Player Stats|Radiation")
+	float GetRadiationPercent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Player Stats|Radiation")
+	FText GetRadiationValueText() const;
+
+	UFUNCTION(BlueprintPure, Category = "Player Stats|Chem")
+	float GetChemPercent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Player Stats|Chem")
+	FText GetChemValueText() const;
+
+	UFUNCTION(BlueprintPure, Category = "Player Stats|Psy")
+	float GetPsyPercent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Player Stats|Psy")
+	FText GetPsyValueText() const;
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Player Stats")
 	void BP_OnStatsDataUpdated(const FPNHUDCharacterStatsData& InStatsData);

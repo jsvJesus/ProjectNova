@@ -298,6 +298,32 @@ FPNHUDCharacterStatsData UPNPlayerHUDComponent::BuildStatsData() const
 
 	UPNCharacterStatsComponent* StatsComponent = OwnerCharacter->GetCharacterStatsComponent();
 
+	auto SetGoodStat100 = [](FPNHUDValuePercent& OutValue, float CurrentValue, float MaxValue)
+	{
+		const float SafeMax = FMath::Max(1.0f, MaxValue);
+		const float SafeCurrent = FMath::Clamp(CurrentValue, 0.0f, SafeMax);
+
+		OutValue.Current = SafeCurrent;
+		OutValue.Max = SafeMax;
+		OutValue.Percent = FMath::Clamp(OutValue.Current / OutValue.Max, 0.0f, 1.0f);
+	};
+
+	auto SetInverseBadStat1000 = [](FPNHUDValuePercent& OutValue, float BadValue100)
+	{
+		const float SafeBadValue100 = FMath::Clamp(BadValue100, 0.0f, 100.0f);
+
+		OutValue.Current = (100.0f - SafeBadValue100) * 10.0f;
+		OutValue.Max = 100.0f;
+		OutValue.Percent = FMath::Clamp(OutValue.Current / OutValue.Max, 0.0f, 1.0f);
+	};
+
+	auto SetBadStat100 = [](FPNHUDValuePercent& OutValue, float Current100)
+	{
+		OutValue.Current = FMath::Clamp(Current100, 0.0f, 100.0f);
+		OutValue.Max = 100.0f;
+		OutValue.Percent = FMath::Clamp(OutValue.Current / OutValue.Max, 0.0f, 1.0f);
+	};
+
 	if (!StatsComponent)
 	{
 		StatsData.Weight.Set(GetTotalCarriedWeight(), 0.0f);
@@ -309,23 +335,26 @@ FPNHUDCharacterStatsData UPNPlayerHUDComponent::BuildStatsData() const
 	const FPNCharacterCurrentStats& CurrentStats = StatsComponent->GetCurrentStats();
 	const FPNCharacterAttributeStats& FinalStats = StatsComponent->GetFinalStats();
 
-	StatsData.Health.Set(CurrentStats.Health, FinalStats.Health);
-	StatsData.Stamina.Set(CurrentStats.Stamina, FinalStats.Endurance);
+	// 100 -> 0, ниже хуже
+	SetGoodStat100(StatsData.Health, CurrentStats.Health, FinalStats.Health);
+	SetGoodStat100(StatsData.Stamina, CurrentStats.Stamina, FinalStats.Endurance);
+	SetGoodStat100(StatsData.Hunger, CurrentStats.Hunger, 100.0f);
+	SetGoodStat100(StatsData.Thirst, CurrentStats.Thirst, 100.0f);
 
-	StatsData.Hunger.Set(CurrentStats.Hunger, 100.0f);
-	StatsData.Thirst.Set(CurrentStats.Thirst, 100.0f);
-
+	// 0 -> MaxWeight kg, выше хуже
 	StatsData.Weight.Set(GetTotalCarriedWeight(), StatsComponent->GetMaxWeight());
 
-	StatsData.Radiation.Set(CurrentStats.Radiation, 100.0f);
-	StatsData.Toxicity.Set(CurrentStats.Toxicity, 100.0f);
-	StatsData.Psy.Set(CurrentStats.Psy, 100.0f);
+	// 0 -> 100, выше хуже
+	SetBadStat100(StatsData.Radiation, CurrentStats.Radiation);
+	SetBadStat100(StatsData.Toxicity, CurrentStats.Toxicity);
+	SetBadStat100(StatsData.Psy, CurrentStats.Psy);
 
-	StatsData.Bleeding.Set(CurrentStats.Bleeding, 100.0f);
-	StatsData.Wounds.Set(CurrentStats.Wounds, 100.0f);
-	StatsData.Burn.Set(CurrentStats.Burn, 100.0f);
-	StatsData.ChemicalBurn.Set(CurrentStats.ChemicalBurn, 100.0f);
-	StatsData.ElectricShock.Set(CurrentStats.ElectricShock, 100.0f);
+	// Доп. статусы
+	SetInverseBadStat1000(StatsData.Bleeding, CurrentStats.Bleeding);
+	SetInverseBadStat1000(StatsData.Wounds, CurrentStats.Wounds);
+	SetInverseBadStat1000(StatsData.Burn, CurrentStats.Burn);
+	SetBadStat100(StatsData.ChemicalBurn, CurrentStats.ChemicalBurn);
+	SetInverseBadStat1000(StatsData.ElectricShock, CurrentStats.ElectricShock);
 
 	StatsData.bIsDead = StatsComponent->IsDead();
 	StatsData.bIsSprinting = OwnerCharacter->IsSprinting();
