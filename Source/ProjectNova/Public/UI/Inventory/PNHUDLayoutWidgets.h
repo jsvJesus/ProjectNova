@@ -6,11 +6,13 @@
 #include "PNHUDLayoutWidgets.generated.h"
 
 class UBorder;
+class UButton;
 class UCanvasPanel;
 class UHorizontalBox;
 class UImage;
 class UOverlay;
 class UPNItemDataAsset;
+class UScrollBox;
 class USizeBox;
 class UTextBlock;
 class UTexture2D;
@@ -28,6 +30,15 @@ enum class EPNInventoryHUDPage : uint8
 	Missions      UMETA(DisplayName = "Missions"),
 	Map           UMETA(DisplayName = "Map"),
 	Options       UMETA(DisplayName = "Options")
+};
+
+UENUM(BlueprintType)
+enum class EPNInventorySlotVisualState : uint8
+{
+	NoneSlot   UMETA(DisplayName = "None Slot"),
+	ActiveSlot UMETA(DisplayName = "Active Slot"),
+	HoverSlot  UMETA(DisplayName = "Hover Slot"),
+	BlockSlot  UMETA(DisplayName = "Block Slot")
 };
 
 USTRUCT(BlueprintType)
@@ -183,7 +194,7 @@ public:
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
-	
+
 	virtual void NativePreConstruct() override;
 	virtual void NativeConstruct() override;
 
@@ -204,26 +215,53 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Header")
 	TSoftObjectPtr<UTexture2D> DisplayIcon;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid", meta = (ClampMin = "1"))
-	int32 MaxSupportedSlotCount = 16;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Layout", meta = (ClampMin = "1.0"))
+	float PanelWidth = 512.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Layout", meta = (ClampMin = "1.0"))
+	float HeaderHeight = 64.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Layout", meta = (ClampMin = "1.0"))
+	float HeaderIconSize = 64.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Layout", meta = (ClampMin = "1.0"))
+	float HeaderCounterWidth = 64.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Layout", meta = (ClampMin = "0.0"))
+	float HeaderBottomSpacing = 10.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid", meta = (ClampMin = "1"))
-	int32 DefaultVisualColumns = 4;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid")
-	bool bUseInventoryColumnsWhenActive = false;
+	int32 SlotsPerRow = 8;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid", meta = (ClampMin = "8.0"))
 	float SlotSize = 64.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid", meta = (ClampMin = "0.0"))
-	float SlotPadding = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid", meta = (ClampMin = "1"))
+	int32 DefaultInventorySlots = 16;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid", meta = (ClampMin = "0.0"))
-	float HeaderHeight = 34.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid", meta = (ClampMin = "1"))
+	int32 DefaultVestSlots = 16;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid", meta = (ClampMin = "0.0"))
-	float RootPadding = 4.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid", meta = (ClampMin = "1"))
+	int32 DefaultBackpackSlots = 16;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid", meta = (ClampMin = "1.0"))
+	float InventoryCenterHeight = 128.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid", meta = (ClampMin = "1.0"))
+	float VestCenterHeight = 128.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid", meta = (ClampMin = "1.0"))
+	float BackpackMinCenterHeight = 128.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid", meta = (ClampMin = "1.0"))
+	float BackpackMaxCenterHeight = 384.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Grid")
+	bool bUseBackpackScrollWhenNeeded = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Preview")
+	EPNHUDInventoryPanel PreviewPanel = EPNHUDInventoryPanel::MainInventory;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Preview", meta = (ClampMin = "0"))
 	int32 PreviewUnlockedSlots = 16;
@@ -238,58 +276,64 @@ public:
 	TSoftObjectPtr<UTexture2D> HeaderBackgroundTexture;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Textures")
-	TSoftObjectPtr<UTexture2D> SlotUnlockedTexture;
+	TSoftObjectPtr<UTexture2D> HeaderIconBackgroundTexture;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Textures")
-	TSoftObjectPtr<UTexture2D> SlotLockedTexture;
+	TSoftObjectPtr<UTexture2D> HeaderCounterBackgroundTexture;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Textures")
-	TSoftObjectPtr<UTexture2D> SlotOccupiedTexture;
+	TSoftObjectPtr<UTexture2D> SlotNoneTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Textures")
+	TSoftObjectPtr<UTexture2D> SlotActiveTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Textures")
+	TSoftObjectPtr<UTexture2D> SlotHoverTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Textures")
+	TSoftObjectPtr<UTexture2D> SlotBlockTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Textures")
+	TSoftObjectPtr<UTexture2D> ItemBackgroundTexture;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
-	FLinearColor RootBackgroundColor = FLinearColor(0.015f, 0.016f, 0.018f, 0.92f);
+	FLinearColor RootBackgroundColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
-	FLinearColor HeaderBackgroundColor = FLinearColor(0.025f, 0.028f, 0.032f, 0.96f);
+	FLinearColor HeaderBackgroundColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.95f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
-	FLinearColor SlotUnlockedColor = FLinearColor(0.035f, 0.04f, 0.045f, 0.92f);
+	FLinearColor HeaderIconBackgroundColor = FLinearColor(0.95f, 0.08f, 0.06f, 1.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
-	FLinearColor SlotLockedColor = FLinearColor(0.006f, 0.007f, 0.008f, 0.22f);
+	FLinearColor HeaderCounterBackgroundColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
-	FLinearColor SlotOccupiedColor = FLinearColor(0.08f, 0.09f, 0.10f, 0.96f);
+	FLinearColor SlotNoneColor = FLinearColor(0.20f, 0.20f, 0.20f, 0.72f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
+	FLinearColor SlotActiveColor = FLinearColor(0.28f, 0.28f, 0.28f, 0.85f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
+	FLinearColor SlotHoverColor = FLinearColor(0.95f, 0.25f, 0.20f, 0.75f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
+	FLinearColor SlotBlockColor = FLinearColor(0.02f, 0.02f, 0.02f, 0.55f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
+	FLinearColor ItemBackgroundColor = FLinearColor(0.08f, 0.08f, 0.08f, 0.96f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
 	FLinearColor TextColor = FLinearColor(0.88f, 0.92f, 0.94f, 1.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
-	FLinearColor CounterTextColor = FLinearColor(0.72f, 0.76f, 0.78f, 1.0f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Style", meta = (ClampMin = "0.0"))
-	float HeaderAccentWidth = 40.0f;
+	FLinearColor CounterTextColor = FLinearColor(0.88f, 0.92f, 0.94f, 1.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Style", meta = (ClampMin = "1"))
 	int32 TitleFontSize = 18;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Style", meta = (ClampMin = "1"))
 	int32 CounterFontSize = 18;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Style", meta = (ClampMin = "0.0"))
-	float HeaderBottomSpacing = 6.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Style", meta = (ClampMin = "0.0"))
-	float GridFramePadding = 2.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Style")
-	FLinearColor HeaderAccentColor = FLinearColor(0.96f, 0.28f, 0.24f, 1.0f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Style")
-	FLinearColor GridFrameColor = FLinearColor(0.18f, 0.18f, 0.18f, 1.0f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Style")
-	FLinearColor GridBackgroundColor = FLinearColor(0.28f, 0.28f, 0.28f, 1.0f);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Style")
 	void CopyVisualStyleFrom(const UPNInventoryGridWidget* SourceWidget);
@@ -308,16 +352,25 @@ protected:
 	TObjectPtr<UHorizontalBox> HeaderBox = nullptr;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UBorder> HeaderIconBorder = nullptr;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UImage> HeaderIconImage = nullptr;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> HeaderTitleText = nullptr;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UBorder> HeaderCounterBorder = nullptr;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> HeaderCounterText = nullptr;
 
 	UPROPERTY(Transient)
 	TObjectPtr<USizeBox> GridSizeBox = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UScrollBox> GridScrollBox = nullptr;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UOverlay> GridOverlay = nullptr;
@@ -398,12 +451,22 @@ protected:
 	void UpdateNativeHeader();
 	void RebuildNativeSlots();
 	void RebuildNativeItems();
+
 	void ApplyTextureToImage(UImage* TargetImage, UTexture2D* Texture, const FVector2D& ImageSize) const;
 	void ApplyTextureToBorder(UBorder* TargetBorder, UTexture2D* Texture, const FLinearColor& Color, const FVector2D& ImageSize) const;
+
+	void ApplySlotButtonStyle(UButton* TargetButton, EPNInventorySlotVisualState SlotState, const FVector2D& ImageSize) const;
 
 	bool FindItemAtPosition(const FPNInventoryGridPosition& Position, FPNHUDInventoryItemData& OutItem, bool& bOutRootSlot) const;
 
 	UTexture2D* GetHeaderIconTexture() const;
+
+	int32 GetDefaultVisualSlotCountForPanel() const;
+	float GetGridContentHeight() const;
+	float GetGridViewportHeight() const;
+	bool ShouldUseGridScroll() const;
+
+	EPNInventorySlotVisualState GetSlotVisualState(const FPNHUDInventoryGridSlotData& SlotData) const;
 };
 
 UCLASS(BlueprintType, Blueprintable)

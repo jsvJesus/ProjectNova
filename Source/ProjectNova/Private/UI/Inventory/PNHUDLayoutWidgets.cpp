@@ -2,12 +2,15 @@
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
+#include "Components/Button.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
 #include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
+#include "Components/ScrollBox.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/UniformGridPanel.h"
@@ -16,6 +19,7 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Items/PNItemDataAsset.h"
 #include "Styling/CoreStyle.h"
+#include "Styling/SlateTypes.h"
 #include "Widgets/SWidget.h"
 
 UPNHUDLayoutWidget::UPNHUDLayoutWidget(const FObjectInitializer& ObjectInitializer)
@@ -94,6 +98,7 @@ void UPNNavigationLayoutWidget::RequestOptionsPage()
 UPNInventoryGridWidget::UPNInventoryGridWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	DisplayTitle = FText::FromString(TEXT("Inventory"));
 }
 
 TSharedRef<SWidget> UPNInventoryGridWidget::RebuildWidget()
@@ -104,10 +109,13 @@ TSharedRef<SWidget> UPNInventoryGridWidget::RebuildWidget()
 		RootBorder = nullptr;
 		RootVerticalBox = nullptr;
 		HeaderBox = nullptr;
+		HeaderIconBorder = nullptr;
 		HeaderIconImage = nullptr;
 		HeaderTitleText = nullptr;
+		HeaderCounterBorder = nullptr;
 		HeaderCounterText = nullptr;
 		GridSizeBox = nullptr;
+		GridScrollBox = nullptr;
 		GridOverlay = nullptr;
 		SlotGridPanel = nullptr;
 		ItemCanvasPanel = nullptr;
@@ -131,10 +139,13 @@ void UPNInventoryGridWidget::ReleaseSlateResources(bool bReleaseChildren)
 	RootBorder = nullptr;
 	RootVerticalBox = nullptr;
 	HeaderBox = nullptr;
+	HeaderIconBorder = nullptr;
 	HeaderIconImage = nullptr;
 	HeaderTitleText = nullptr;
+	HeaderCounterBorder = nullptr;
 	HeaderCounterText = nullptr;
 	GridSizeBox = nullptr;
+	GridScrollBox = nullptr;
 	GridOverlay = nullptr;
 	SlotGridPanel = nullptr;
 	ItemCanvasPanel = nullptr;
@@ -188,34 +199,52 @@ void UPNInventoryGridWidget::CopyVisualStyleFrom(const UPNInventoryGridWidget* S
 		return;
 	}
 
+	PanelWidth = SourceWidget->PanelWidth;
+	HeaderHeight = SourceWidget->HeaderHeight;
+	HeaderIconSize = SourceWidget->HeaderIconSize;
+	HeaderCounterWidth = SourceWidget->HeaderCounterWidth;
+	HeaderBottomSpacing = SourceWidget->HeaderBottomSpacing;
+
+	SlotsPerRow = SourceWidget->SlotsPerRow;
+	SlotSize = SourceWidget->SlotSize;
+
+	DefaultInventorySlots = SourceWidget->DefaultInventorySlots;
+	DefaultVestSlots = SourceWidget->DefaultVestSlots;
+	DefaultBackpackSlots = SourceWidget->DefaultBackpackSlots;
+
+	InventoryCenterHeight = SourceWidget->InventoryCenterHeight;
+	VestCenterHeight = SourceWidget->VestCenterHeight;
+	BackpackMinCenterHeight = SourceWidget->BackpackMinCenterHeight;
+	BackpackMaxCenterHeight = SourceWidget->BackpackMaxCenterHeight;
+	bUseBackpackScrollWhenNeeded = SourceWidget->bUseBackpackScrollWhenNeeded;
+
 	RootBackgroundTexture = SourceWidget->RootBackgroundTexture;
 	HeaderBackgroundTexture = SourceWidget->HeaderBackgroundTexture;
-	SlotUnlockedTexture = SourceWidget->SlotUnlockedTexture;
-	SlotLockedTexture = SourceWidget->SlotLockedTexture;
-	SlotOccupiedTexture = SourceWidget->SlotOccupiedTexture;
+	HeaderIconBackgroundTexture = SourceWidget->HeaderIconBackgroundTexture;
+	HeaderCounterBackgroundTexture = SourceWidget->HeaderCounterBackgroundTexture;
+
+	SlotNoneTexture = SourceWidget->SlotNoneTexture;
+	SlotActiveTexture = SourceWidget->SlotActiveTexture;
+	SlotHoverTexture = SourceWidget->SlotHoverTexture;
+	SlotBlockTexture = SourceWidget->SlotBlockTexture;
+	ItemBackgroundTexture = SourceWidget->ItemBackgroundTexture;
 
 	RootBackgroundColor = SourceWidget->RootBackgroundColor;
 	HeaderBackgroundColor = SourceWidget->HeaderBackgroundColor;
-	SlotUnlockedColor = SourceWidget->SlotUnlockedColor;
-	SlotLockedColor = SourceWidget->SlotLockedColor;
-	SlotOccupiedColor = SourceWidget->SlotOccupiedColor;
+	HeaderIconBackgroundColor = SourceWidget->HeaderIconBackgroundColor;
+	HeaderCounterBackgroundColor = SourceWidget->HeaderCounterBackgroundColor;
+
+	SlotNoneColor = SourceWidget->SlotNoneColor;
+	SlotActiveColor = SourceWidget->SlotActiveColor;
+	SlotHoverColor = SourceWidget->SlotHoverColor;
+	SlotBlockColor = SourceWidget->SlotBlockColor;
+	ItemBackgroundColor = SourceWidget->ItemBackgroundColor;
+
 	TextColor = SourceWidget->TextColor;
 	CounterTextColor = SourceWidget->CounterTextColor;
 
-	SlotSize = SourceWidget->SlotSize;
-	SlotPadding = SourceWidget->SlotPadding;
-	HeaderHeight = SourceWidget->HeaderHeight;
-	RootPadding = SourceWidget->RootPadding;
-
-	HeaderAccentWidth = SourceWidget->HeaderAccentWidth;
 	TitleFontSize = SourceWidget->TitleFontSize;
 	CounterFontSize = SourceWidget->CounterFontSize;
-	HeaderBottomSpacing = SourceWidget->HeaderBottomSpacing;
-	GridFramePadding = SourceWidget->GridFramePadding;
-
-	HeaderAccentColor = SourceWidget->HeaderAccentColor;
-	GridFrameColor = SourceWidget->GridFrameColor;
-	GridBackgroundColor = SourceWidget->GridBackgroundColor;
 
 	if (bBuildNativeGrid)
 	{
@@ -274,7 +303,7 @@ FText UPNInventoryGridWidget::GetDisplayTitle() const
 		return FText::FromString(TEXT("Inventory"));
 
 	case EPNHUDInventoryPanel::Vest:
-		return FText::FromString(TEXT("Armor"));
+		return FText::FromString(TEXT("Vest"));
 
 	case EPNHUDInventoryPanel::Backpack:
 		return FText::FromString(TEXT("Backpack"));
@@ -314,7 +343,8 @@ int32 UPNInventoryGridWidget::GetUnlockedSlotCount() const
 	const bool bInventoryEnabled =
 		InventoryData.bCanReceiveItems ||
 		InventoryData.bCanRemoveItems ||
-		InventoryData.Items.Num() > 0;
+		InventoryData.Items.Num() > 0 ||
+		IsDesignTime();
 
 	if (!bInventoryEnabled)
 	{
@@ -331,7 +361,7 @@ int32 UPNInventoryGridWidget::GetMaxVisualSlotCount() const
 		return InventoryData.SlotCount;
 	}
 
-	return FMath::Max(1, MaxSupportedSlotCount);
+	return GetDefaultVisualSlotCountForPanel();
 }
 
 int32 UPNInventoryGridWidget::GetOccupiedItemCount() const
@@ -361,14 +391,7 @@ int32 UPNInventoryGridWidget::GetUsedSlotAreaCount() const
 
 int32 UPNInventoryGridWidget::GetVisualColumns() const
 {
-	const int32 SafeDefaultColumns = FMath::Max(1, DefaultVisualColumns);
-
-	if (bUseInventoryColumnsWhenActive && IsInventoryUnlocked() && InventoryData.Columns > 0)
-	{
-		return FMath::Clamp(InventoryData.Columns, 1, SafeDefaultColumns);
-	}
-
-	return SafeDefaultColumns;
+	return FMath::Max(1, SlotsPerRow);
 }
 
 int32 UPNInventoryGridWidget::GetVisualRows() const
@@ -381,18 +404,10 @@ int32 UPNInventoryGridWidget::GetVisualRows() const
 
 FVector2D UPNInventoryGridWidget::GetVisualGridSize() const
 {
-	const int32 VisualColumns = GetVisualColumns();
-	const int32 VisualRows = GetVisualRows();
-
-	const float Width =
-		static_cast<float>(VisualColumns) * SlotSize +
-		static_cast<float>(FMath::Max(0, VisualColumns - 1)) * SlotPadding;
-
-	const float Height =
-		static_cast<float>(VisualRows) * SlotSize +
-		static_cast<float>(FMath::Max(0, VisualRows - 1)) * SlotPadding;
-
-	return FVector2D(Width, Height);
+	return FVector2D(
+		static_cast<float>(GetVisualColumns()) * SlotSize,
+		GetGridContentHeight()
+	);
 }
 
 TArray<FPNHUDInventoryGridSlotData> UPNInventoryGridWidget::GetVisualGridSlots() const
@@ -432,8 +447,6 @@ TArray<FPNHUDInventoryItemVisualData> UPNInventoryGridWidget::GetVisualItemData(
 	TArray<FPNHUDInventoryItemVisualData> Result;
 	Result.Reserve(InventoryData.Items.Num());
 
-	const float Step = SlotSize + SlotPadding;
-
 	int32 LayerIndex = 1;
 
 	for (const FPNHUDInventoryItemData& ItemData : InventoryData.Items)
@@ -450,13 +463,13 @@ TArray<FPNHUDInventoryItemVisualData> UPNInventoryGridWidget::GetVisualItemData(
 		VisualData.ItemData = ItemData;
 
 		VisualData.PixelPosition = FVector2D(
-			static_cast<float>(ItemData.Position.X) * Step,
-			static_cast<float>(ItemData.Position.Y) * Step
+			static_cast<float>(ItemData.Position.X) * SlotSize,
+			static_cast<float>(ItemData.Position.Y) * SlotSize
 		);
 
 		VisualData.PixelSize = FVector2D(
-			static_cast<float>(WidthSlots) * SlotSize + static_cast<float>(WidthSlots - 1) * SlotPadding,
-			static_cast<float>(HeightSlots) * SlotSize + static_cast<float>(HeightSlots - 1) * SlotPadding
+			static_cast<float>(WidthSlots) * SlotSize,
+			static_cast<float>(HeightSlots) * SlotSize
 		);
 
 		VisualData.Layer = LayerIndex++;
@@ -472,16 +485,88 @@ bool UPNInventoryGridWidget::IsInventoryUnlocked() const
 	return GetUnlockedSlotCount() > 0;
 }
 
+int32 UPNInventoryGridWidget::GetDefaultVisualSlotCountForPanel() const
+{
+	switch (InventoryData.Panel)
+	{
+	case EPNHUDInventoryPanel::Vest:
+		return FMath::Max(1, DefaultVestSlots);
+
+	case EPNHUDInventoryPanel::Backpack:
+		return FMath::Max(1, DefaultBackpackSlots);
+
+	case EPNHUDInventoryPanel::MainInventory:
+	case EPNHUDInventoryPanel::OpenedContainer:
+	default:
+		return FMath::Max(1, DefaultInventorySlots);
+	}
+}
+
+float UPNInventoryGridWidget::GetGridContentHeight() const
+{
+	return static_cast<float>(GetVisualRows()) * SlotSize;
+}
+
+float UPNInventoryGridWidget::GetGridViewportHeight() const
+{
+	const float ContentHeight = GetGridContentHeight();
+
+	switch (InventoryData.Panel)
+	{
+	case EPNHUDInventoryPanel::MainInventory:
+		return InventoryCenterHeight;
+
+	case EPNHUDInventoryPanel::Vest:
+		return VestCenterHeight;
+
+	case EPNHUDInventoryPanel::Backpack:
+		return FMath::Clamp(ContentHeight, BackpackMinCenterHeight, BackpackMaxCenterHeight);
+
+	default:
+		return ContentHeight;
+	}
+}
+
+bool UPNInventoryGridWidget::ShouldUseGridScroll() const
+{
+	if (InventoryData.Panel != EPNHUDInventoryPanel::Backpack)
+	{
+		return false;
+	}
+
+	if (!bUseBackpackScrollWhenNeeded)
+	{
+		return false;
+	}
+
+	return GetGridContentHeight() > GetGridViewportHeight() + 1.0f;
+}
+
+EPNInventorySlotVisualState UPNInventoryGridWidget::GetSlotVisualState(const FPNHUDInventoryGridSlotData& SlotData) const
+{
+	if (!SlotData.bUnlocked)
+	{
+		return EPNInventorySlotVisualState::BlockSlot;
+	}
+
+	if (SlotData.bOccupied)
+	{
+		return EPNInventorySlotVisualState::ActiveSlot;
+	}
+
+	return EPNInventorySlotVisualState::NoneSlot;
+}
+
 void UPNInventoryGridWidget::BuildPreviewInventoryData()
 {
-	InventoryData.Panel = EPNHUDInventoryPanel::MainInventory;
+	InventoryData.Panel = PreviewPanel;
 	InventoryData.InventoryType = EPNInventoryType::Inventory;
 	InventoryData.bIsActive = true;
 	InventoryData.bCanReceiveItems = true;
 	InventoryData.bCanRemoveItems = true;
 	InventoryData.Columns = GetVisualColumns();
 	InventoryData.Rows = GetVisualRows();
-	InventoryData.SlotCount = FMath::Clamp(PreviewUnlockedSlots, 0, GetMaxVisualSlotCount());
+	InventoryData.SlotCount = FMath::Clamp(PreviewUnlockedSlots, 0, GetDefaultVisualSlotCountForPanel());
 	InventoryData.Items.Reset();
 
 	const int32 SafePreviewUsedSlots = FMath::Clamp(PreviewUsedSlots, 0, InventoryData.SlotCount);
@@ -509,9 +594,10 @@ void UPNInventoryGridWidget::BuildNativeGridRoot()
 		return;
 	}
 
-	const FVector2D GridSize = GetVisualGridSize();
-	const float TotalWidth = GridSize.X;
-	const float TotalHeight = HeaderHeight + HeaderBottomSpacing + GridSize.Y;
+	const FVector2D GridContentSize = GetVisualGridSize();
+	const float ViewportHeight = GetGridViewportHeight();
+	const float TotalWidth = PanelWidth;
+	const float TotalHeight = HeaderHeight + HeaderBottomSpacing + ViewportHeight;
 
 	if (!RootSizeBox)
 	{
@@ -525,7 +611,6 @@ void UPNInventoryGridWidget::BuildNativeGridRoot()
 		RootVerticalBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		RootBorder->SetContent(RootVerticalBox);
 
-		// HEADER BORDER
 		HeaderBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 		HeaderBorder->SetPadding(FMargin(0.0f));
 
@@ -537,14 +622,19 @@ void UPNInventoryGridWidget::BuildNativeGridRoot()
 		HeaderBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		HeaderBorder->SetContent(HeaderBox);
 
-		// HEADER ICON
 		USizeBox* IconSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-		IconSizeBox->SetWidthOverride(HeaderAccentWidth);
+		IconSizeBox->SetWidthOverride(HeaderIconSize);
 		IconSizeBox->SetHeightOverride(HeaderHeight);
+
+		HeaderIconBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		HeaderIconBorder->SetPadding(FMargin(0.0f));
+		HeaderIconBorder->SetHorizontalAlignment(HAlign_Fill);
+		HeaderIconBorder->SetVerticalAlignment(VAlign_Fill);
+		IconSizeBox->AddChild(HeaderIconBorder);
 
 		HeaderIconImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
 		HeaderIconImage->SetColorAndOpacity(FLinearColor::White);
-		IconSizeBox->AddChild(HeaderIconImage);
+		HeaderIconBorder->SetContent(HeaderIconImage);
 
 		if (UHorizontalBoxSlot* IconSlot = HeaderBox->AddChildToHorizontalBox(IconSizeBox))
 		{
@@ -553,7 +643,6 @@ void UPNInventoryGridWidget::BuildNativeGridRoot()
 			IconSlot->SetVerticalAlignment(VAlign_Fill);
 		}
 
-		// TITLE
 		HeaderTitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		HeaderTitleText->SetColorAndOpacity(FSlateColor(TextColor));
 		HeaderTitleText->SetJustification(ETextJustify::Left);
@@ -565,21 +654,30 @@ void UPNInventoryGridWidget::BuildNativeGridRoot()
 			TitleSlot->SetVerticalAlignment(VAlign_Center);
 		}
 
-		// COUNTER
+		USizeBox* CounterSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+		CounterSizeBox->SetWidthOverride(HeaderCounterWidth);
+		CounterSizeBox->SetHeightOverride(HeaderHeight);
+
+		HeaderCounterBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		HeaderCounterBorder->SetPadding(FMargin(0.0f));
+		HeaderCounterBorder->SetHorizontalAlignment(HAlign_Center);
+		HeaderCounterBorder->SetVerticalAlignment(VAlign_Center);
+		CounterSizeBox->AddChild(HeaderCounterBorder);
+
 		HeaderCounterText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		HeaderCounterText->SetColorAndOpacity(FSlateColor(CounterTextColor));
-		HeaderCounterText->SetJustification(ETextJustify::Right);
+		HeaderCounterText->SetJustification(ETextJustify::Center);
+		HeaderCounterBorder->SetContent(HeaderCounterText);
 
-		if (UHorizontalBoxSlot* CounterSlot = HeaderBox->AddChildToHorizontalBox(HeaderCounterText))
+		if (UHorizontalBoxSlot* CounterSlot = HeaderBox->AddChildToHorizontalBox(CounterSizeBox))
 		{
-			CounterSlot->SetPadding(FMargin(8.0f, 0.0f, 12.0f, 0.0f));
+			CounterSlot->SetPadding(FMargin(0.0f));
 			CounterSlot->SetHorizontalAlignment(HAlign_Right);
-			CounterSlot->SetVerticalAlignment(VAlign_Center);
+			CounterSlot->SetVerticalAlignment(VAlign_Fill);
 		}
 
-		// GRID BORDER
 		GridBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		GridBorder->SetPadding(FMargin(GridFramePadding));
+		GridBorder->SetPadding(FMargin(0.0f));
 
 		if (UVerticalBoxSlot* GridVBoxSlot = RootVerticalBox->AddChildToVerticalBox(GridBorder))
 		{
@@ -589,14 +687,30 @@ void UPNInventoryGridWidget::BuildNativeGridRoot()
 		GridSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
 		GridBorder->SetContent(GridSizeBox);
 
+		GridScrollBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
+		GridScrollBox->SetOrientation(Orient_Vertical);
+		GridScrollBox->SetScrollBarVisibility(ESlateVisibility::Collapsed);
+		GridSizeBox->AddChild(GridScrollBox);
+
 		GridOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-		GridSizeBox->AddChild(GridOverlay);
+		GridScrollBox->AddChild(GridOverlay);
 
 		SlotGridPanel = WidgetTree->ConstructWidget<UUniformGridPanel>(UUniformGridPanel::StaticClass());
-		GridOverlay->AddChild(SlotGridPanel);
+
+		if (UOverlaySlot* SlotGridOverlaySlot = GridOverlay->AddChildToOverlay(SlotGridPanel))
+		{
+			SlotGridOverlaySlot->SetHorizontalAlignment(HAlign_Fill);
+			SlotGridOverlaySlot->SetVerticalAlignment(VAlign_Fill);
+		}
 
 		ItemCanvasPanel = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
-		GridOverlay->AddChild(ItemCanvasPanel);
+		ItemCanvasPanel->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+
+		if (UOverlaySlot* ItemCanvasOverlaySlot = GridOverlay->AddChildToOverlay(ItemCanvasPanel))
+		{
+			ItemCanvasOverlaySlot->SetHorizontalAlignment(HAlign_Fill);
+			ItemCanvasOverlaySlot->SetVerticalAlignment(VAlign_Fill);
+		}
 	}
 
 	RootSizeBox->SetWidthOverride(TotalWidth);
@@ -604,8 +718,8 @@ void UPNInventoryGridWidget::BuildNativeGridRoot()
 
 	if (GridSizeBox)
 	{
-		GridSizeBox->SetWidthOverride(GridSize.X);
-		GridSizeBox->SetHeightOverride(GridSize.Y);
+		GridSizeBox->SetWidthOverride(TotalWidth);
+		GridSizeBox->SetHeightOverride(ViewportHeight);
 	}
 
 	if (RootBorder)
@@ -628,13 +742,33 @@ void UPNInventoryGridWidget::BuildNativeGridRoot()
 		);
 	}
 
+	if (HeaderIconBorder)
+	{
+		ApplyTextureToBorder(
+			HeaderIconBorder,
+			HeaderIconBackgroundTexture.LoadSynchronous(),
+			HeaderIconBackgroundColor,
+			FVector2D(HeaderIconSize, HeaderHeight)
+		);
+	}
+
+	if (HeaderCounterBorder)
+	{
+		ApplyTextureToBorder(
+			HeaderCounterBorder,
+			HeaderCounterBackgroundTexture.LoadSynchronous(),
+			HeaderCounterBackgroundColor,
+			FVector2D(HeaderCounterWidth, HeaderHeight)
+		);
+	}
+
 	if (GridBorder)
 	{
 		ApplyTextureToBorder(
 			GridBorder,
 			nullptr,
-			GridFrameColor,
-			FVector2D(GridSize.X, GridSize.Y)
+			FLinearColor(0.0f, 0.0f, 0.0f, 0.0f),
+			FVector2D(GridContentSize.X, ViewportHeight)
 		);
 	}
 }
@@ -660,10 +794,11 @@ void UPNInventoryGridWidget::UpdateNativeHeader()
 	{
 		UTexture2D* HeaderIconTexture = GetHeaderIconTexture();
 		HeaderIconImage->SetColorAndOpacity(FLinearColor::White);
+
 		ApplyTextureToImage(
 			HeaderIconImage,
 			HeaderIconTexture,
-			FVector2D(HeaderAccentWidth, HeaderHeight)
+			FVector2D(HeaderIconSize, HeaderHeight)
 		);
 	}
 }
@@ -685,47 +820,16 @@ void UPNInventoryGridWidget::RebuildNativeSlots()
 		SlotSizeBox->SetWidthOverride(SlotSize);
 		SlotSizeBox->SetHeightOverride(SlotSize);
 
-		UBorder* OuterBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		ApplyTextureToBorder(
-			OuterBorder,
-			nullptr,
-			GridFrameColor,
+		UButton* SlotButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+		SlotButton->SetIsEnabled(SlotData.bUnlocked);
+
+		ApplySlotButtonStyle(
+			SlotButton,
+			GetSlotVisualState(SlotData),
 			FVector2D(SlotSize, SlotSize)
 		);
 
-		// Убираем внутренний padding между слотами
-		OuterBorder->SetPadding(FMargin(0.0f));
-
-		UBorder* InnerBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-
-		FLinearColor FillColor = SlotUnlockedColor;
-		UTexture2D* SlotTexture = nullptr;
-
-		if (!SlotData.bUnlocked)
-		{
-			FillColor = SlotLockedColor;
-			SlotTexture = SlotLockedTexture.LoadSynchronous();
-		}
-		else if (SlotData.bOccupied)
-		{
-			FillColor = SlotOccupiedColor;
-			SlotTexture = SlotOccupiedTexture.LoadSynchronous();
-		}
-		else
-		{
-			FillColor = GridBackgroundColor;
-			SlotTexture = SlotUnlockedTexture.LoadSynchronous();
-		}
-
-		ApplyTextureToBorder(
-			InnerBorder,
-			SlotTexture,
-			FillColor,
-			FVector2D(SlotSize, SlotSize)
-		);
-
-		OuterBorder->SetContent(InnerBorder);
-		SlotSizeBox->AddChild(OuterBorder);
+		SlotSizeBox->AddChild(SlotButton);
 
 		if (UUniformGridSlot* UniformSlot = SlotGridPanel->AddChildToUniformGrid(SlotSizeBox, SlotData.Position.Y, SlotData.Position.X))
 		{
@@ -743,6 +847,7 @@ void UPNInventoryGridWidget::RebuildNativeItems()
 	}
 
 	ItemCanvasPanel->ClearChildren();
+	ItemCanvasPanel->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 
 	const TArray<FPNHUDInventoryItemVisualData> Items = GetVisualItemData();
 
@@ -751,16 +856,16 @@ void UPNInventoryGridWidget::RebuildNativeItems()
 		USizeBox* ItemSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
 		ItemSizeBox->SetWidthOverride(VisualData.PixelSize.X);
 		ItemSizeBox->SetHeightOverride(VisualData.PixelSize.Y);
+		ItemSizeBox->SetVisibility(ESlateVisibility::HitTestInvisible);
 
 		UBorder* ItemBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-
-		// Убираем внутренний padding у предмета, чтобы он не ломал сетку
 		ItemBorder->SetPadding(FMargin(0.0f));
+		ItemBorder->SetVisibility(ESlateVisibility::HitTestInvisible);
 
 		ApplyTextureToBorder(
 			ItemBorder,
-			nullptr,
-			FLinearColor(0.12f, 0.13f, 0.14f, 0.96f),
+			ItemBackgroundTexture.LoadSynchronous(),
+			ItemBackgroundColor,
 			VisualData.PixelSize
 		);
 
@@ -774,12 +879,14 @@ void UPNInventoryGridWidget::RebuildNativeItems()
 		if (IconTexture)
 		{
 			UImage* ItemImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+			ItemImage->SetVisibility(ESlateVisibility::HitTestInvisible);
 			ApplyTextureToImage(ItemImage, IconTexture, VisualData.PixelSize);
 			ItemBorder->SetContent(ItemImage);
 		}
 		else
 		{
 			UTextBlock* ItemText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+			ItemText->SetVisibility(ESlateVisibility::HitTestInvisible);
 
 			FText NameText = FText::FromString(TEXT("Item"));
 			if (VisualData.ItemData.Item.ItemData)
@@ -836,11 +943,76 @@ void UPNInventoryGridWidget::ApplyTextureToBorder(UBorder* TargetBorder, UTextur
 	if (Texture)
 	{
 		Brush.SetResourceObject(Texture);
-		Brush.SetImageSize(ImageSize);
 	}
+
+	Brush.SetImageSize(ImageSize);
 
 	TargetBorder->SetBrush(Brush);
 	TargetBorder->SetBrushColor(Color);
+}
+
+void UPNInventoryGridWidget::ApplySlotButtonStyle(UButton* TargetButton, EPNInventorySlotVisualState SlotState, const FVector2D& ImageSize) const
+{
+	if (!TargetButton)
+	{
+		return;
+	}
+
+	TSoftObjectPtr<UTexture2D> NormalTexture;
+	FLinearColor NormalColor = SlotNoneColor;
+
+	switch (SlotState)
+	{
+	case EPNInventorySlotVisualState::ActiveSlot:
+		NormalTexture = SlotActiveTexture;
+		NormalColor = SlotActiveColor;
+		break;
+
+	case EPNInventorySlotVisualState::BlockSlot:
+		NormalTexture = SlotBlockTexture;
+		NormalColor = SlotBlockColor;
+		break;
+
+	case EPNInventorySlotVisualState::NoneSlot:
+	case EPNInventorySlotVisualState::HoverSlot:
+	default:
+		NormalTexture = SlotNoneTexture;
+		NormalColor = SlotNoneColor;
+		break;
+	}
+
+	const bool bBlocked = SlotState == EPNInventorySlotVisualState::BlockSlot;
+
+	TSoftObjectPtr<UTexture2D> HoverTexture = bBlocked ? SlotBlockTexture : SlotHoverTexture;
+	FLinearColor HoverColor = bBlocked ? SlotBlockColor : SlotHoverColor;
+
+	auto MakeBrush = [ImageSize](UTexture2D* Texture, const FLinearColor& Color)
+	{
+		FSlateBrush Brush = *FCoreStyle::Get().GetBrush(TEXT("WhiteBrush"));
+
+		if (Texture)
+		{
+			Brush.SetResourceObject(Texture);
+		}
+
+		Brush.SetImageSize(ImageSize);
+		Brush.TintColor = FSlateColor(Color);
+
+		return Brush;
+	};
+
+	FButtonStyle ButtonStyle;
+	ButtonStyle.SetNormal(MakeBrush(NormalTexture.LoadSynchronous(), NormalColor));
+	ButtonStyle.SetHovered(MakeBrush(HoverTexture.LoadSynchronous(), HoverColor));
+	ButtonStyle.SetPressed(MakeBrush(HoverTexture.LoadSynchronous(), HoverColor));
+	ButtonStyle.SetDisabled(MakeBrush(SlotBlockTexture.LoadSynchronous(), SlotBlockColor));
+
+	ButtonStyle.NormalPadding = FMargin(0.0f);
+	ButtonStyle.PressedPadding = FMargin(0.0f);
+
+	TargetButton->SetStyle(ButtonStyle);
+	TargetButton->SetBackgroundColor(FLinearColor::White);
+	TargetButton->SetColorAndOpacity(FLinearColor::White);
 }
 
 bool UPNInventoryGridWidget::FindItemAtPosition(const FPNInventoryGridPosition& Position, FPNHUDInventoryItemData& OutItem, bool& bOutRootSlot) const
