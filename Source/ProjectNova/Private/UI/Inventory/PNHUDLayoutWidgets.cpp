@@ -259,7 +259,14 @@ void UPNInventoryGridWidget::CopyVisualStyleFrom(const UPNInventoryGridWidget* S
 	SlotActiveTexture = SourceWidget->SlotActiveTexture;
 	SlotHoverTexture = SourceWidget->SlotHoverTexture;
 	SlotBlockTexture = SourceWidget->SlotBlockTexture;
-	ItemBackgroundTexture = SourceWidget->ItemBackgroundTexture;
+	ItemSize1x1Textures = SourceWidget->ItemSize1x1Textures;
+	ItemSize1x2Textures = SourceWidget->ItemSize1x2Textures;
+	ItemSize2x1Textures = SourceWidget->ItemSize2x1Textures;
+	ItemSize2x2Textures = SourceWidget->ItemSize2x2Textures;
+	ItemSize2x3Textures = SourceWidget->ItemSize2x3Textures;
+	ItemSize3x2Textures = SourceWidget->ItemSize3x2Textures;
+	ItemSize3x3Textures = SourceWidget->ItemSize3x3Textures;
+	ItemSize4x2Textures = SourceWidget->ItemSize4x2Textures;
 	InventorySlotsBackgroundTexture = SourceWidget->InventorySlotsBackgroundTexture;
 	VestSlotsBackgroundTexture = SourceWidget->VestSlotsBackgroundTexture;
 	BackpackSlotsBackgroundTexture = SourceWidget->BackpackSlotsBackgroundTexture;
@@ -591,17 +598,7 @@ float UPNInventoryGridWidget::GetGridViewportHeight() const
 
 bool UPNInventoryGridWidget::ShouldUseGridScroll() const
 {
-	if (InventoryData.Panel != EPNHUDInventoryPanel::Backpack)
-	{
-		return false;
-	}
-
-	if (!bUseBackpackScrollWhenNeeded)
-	{
-		return false;
-	}
-
-	return GetGridContentHeight() > GetGridViewportHeight() + 1.0f;
+	return InventoryData.Panel == EPNHUDInventoryPanel::Backpack && bUseBackpackScrollWhenNeeded;
 }
 
 EPNInventorySlotVisualState UPNInventoryGridWidget::GetSlotVisualState(const FPNHUDInventoryGridSlotData& SlotData) const
@@ -787,6 +784,23 @@ void UPNInventoryGridWidget::BuildNativeGridRoot()
 		GridSizeBox->SetHeightOverride(ViewportHeight);
 	}
 
+	if (GridScrollBox)
+	{
+		const bool bEnableGridScroll = ShouldUseGridScroll();
+
+		GridScrollBox->SetConsumeMouseWheel(
+			bEnableGridScroll ? EConsumeMouseWheel::WhenScrollingPossible : EConsumeMouseWheel::Never
+		);
+
+		GridScrollBox->SetWheelScrollMultiplier(bEnableGridScroll ? 1.0f : 0.0f);
+		GridScrollBox->SetAllowOverscroll(bEnableGridScroll);
+
+		if (!bEnableGridScroll)
+		{
+			GridScrollBox->SetScrollOffset(0.0f);
+		}
+	}
+
 	if (RootBorder)
 	{
 		ApplyTextureToBorder(
@@ -920,17 +934,15 @@ void UPNInventoryGridWidget::RebuildNativeItems()
 		USizeBox* ItemSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
 		ItemSizeBox->SetWidthOverride(VisualData.PixelSize.X);
 		ItemSizeBox->SetHeightOverride(VisualData.PixelSize.Y);
-		ItemSizeBox->SetVisibility(ESlateVisibility::HitTestInvisible);
+		ItemSizeBox->SetVisibility(ESlateVisibility::Visible);
 
-		UBorder* ItemBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		ItemBorder->SetPadding(FMargin(0.0f));
-		ItemBorder->SetVisibility(ESlateVisibility::HitTestInvisible);
+		UButton* ItemButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+		ItemButton->SetIsEnabled(true);
 
-		ApplyTextureToBorderImageOnly(
-			ItemBorder,
-			ItemBackgroundTexture.LoadSynchronous(),
-			VisualData.PixelSize
-		);
+		ApplyItemButtonStyle(ItemButton, VisualData);
+
+		UOverlay* ItemOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		ItemOverlay->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 
 		UTexture2D* IconTexture = nullptr;
 
@@ -943,8 +955,14 @@ void UPNInventoryGridWidget::RebuildNativeItems()
 		{
 			UImage* ItemImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
 			ItemImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+
 			ApplyTextureToImage(ItemImage, IconTexture, VisualData.PixelSize);
-			ItemBorder->SetContent(ItemImage);
+
+			if (UOverlaySlot* ImageSlot = ItemOverlay->AddChildToOverlay(ItemImage))
+			{
+				ImageSlot->SetHorizontalAlignment(HAlign_Fill);
+				ImageSlot->SetVerticalAlignment(VAlign_Fill);
+			}
 		}
 		else
 		{
@@ -952,6 +970,7 @@ void UPNInventoryGridWidget::RebuildNativeItems()
 			ItemText->SetVisibility(ESlateVisibility::HitTestInvisible);
 
 			FText NameText = FText::FromString(TEXT("Item"));
+
 			if (VisualData.ItemData.Item.ItemData)
 			{
 				NameText = VisualData.ItemData.Item.ItemData->GetItemName();
@@ -959,10 +978,16 @@ void UPNInventoryGridWidget::RebuildNativeItems()
 
 			ItemText->SetText(NameText);
 			ItemText->SetColorAndOpacity(FSlateColor(TextColor));
-			ItemBorder->SetContent(ItemText);
+
+			if (UOverlaySlot* TextSlot = ItemOverlay->AddChildToOverlay(ItemText))
+			{
+				TextSlot->SetHorizontalAlignment(HAlign_Center);
+				TextSlot->SetVerticalAlignment(VAlign_Center);
+			}
 		}
 
-		ItemSizeBox->AddChild(ItemBorder);
+		ItemButton->AddChild(ItemOverlay);
+		ItemSizeBox->AddChild(ItemButton);
 
 		if (UCanvasPanelSlot* CanvasSlot = ItemCanvasPanel->AddChildToCanvas(ItemSizeBox))
 		{
@@ -1074,6 +1099,89 @@ void UPNInventoryGridWidget::ApplySlotButtonStyle(UButton* TargetButton, EPNInve
 	ButtonStyle.SetHovered(PNMakeTextureBrush(HoveredTexture, ImageSize));
 	ButtonStyle.SetPressed(PNMakeTextureBrush(PressedTexture, ImageSize));
 	ButtonStyle.SetDisabled(PNMakeTextureBrush(DisabledTexture, ImageSize));
+
+	ButtonStyle.SetNormalPadding(FMargin(0.0f));
+	ButtonStyle.SetPressedPadding(FMargin(0.0f));
+
+	TargetButton->SetStyle(ButtonStyle);
+	TargetButton->SetColorAndOpacity(FLinearColor::White);
+	TargetButton->SetBackgroundColor(FLinearColor::White);
+}
+
+const FPNHUDInventoryItemSizeTextureSet* UPNInventoryGridWidget::GetItemTextureSetForSize(const FPNInventoryItemSize& ItemSize) const
+{
+	const int32 Width = FMath::Max(1, ItemSize.GetFinalWidth());
+	const int32 Height = FMath::Max(1, ItemSize.GetFinalHeight());
+
+	if (Width == 1 && Height == 1)
+	{
+		return &ItemSize1x1Textures;
+	}
+
+	if (Width == 1 && Height == 2)
+	{
+		return &ItemSize1x2Textures;
+	}
+
+	if (Width == 2 && Height == 1)
+	{
+		return &ItemSize2x1Textures;
+	}
+
+	if (Width == 2 && Height == 2)
+	{
+		return &ItemSize2x2Textures;
+	}
+
+	if (Width == 2 && Height == 3)
+	{
+		return &ItemSize2x3Textures;
+	}
+
+	if (Width == 3 && Height == 2)
+	{
+		return &ItemSize3x2Textures;
+	}
+
+	if (Width == 3 && Height == 3)
+	{
+		return &ItemSize3x3Textures;
+	}
+
+	if (Width == 4 && Height == 2)
+	{
+		return &ItemSize4x2Textures;
+	}
+
+	return nullptr;
+}
+
+void UPNInventoryGridWidget::ApplyItemButtonStyle(UButton* TargetButton, const FPNHUDInventoryItemVisualData& VisualData) const
+{
+	if (!TargetButton)
+	{
+		return;
+	}
+
+	UTexture2D* NormalTexture = nullptr;
+	UTexture2D* HoveredTexture = nullptr;
+
+	if (const FPNHUDInventoryItemSizeTextureSet* TextureSet = GetItemTextureSetForSize(VisualData.ItemData.Size))
+	{
+		NormalTexture = TextureSet->ItemBackgroundTexture.LoadSynchronous();
+		HoveredTexture = TextureSet->ItemHoverTexture.LoadSynchronous();
+	}
+
+	if (!HoveredTexture)
+	{
+		HoveredTexture = NormalTexture;
+	}
+
+	FButtonStyle ButtonStyle;
+	ButtonStyle.SetNormal(PNMakeTextureBrush(NormalTexture, VisualData.PixelSize));
+	ButtonStyle.SetHovered(PNMakeTextureBrush(HoveredTexture, VisualData.PixelSize));
+	ButtonStyle.SetPressed(PNMakeTextureBrush(NormalTexture, VisualData.PixelSize));
+	ButtonStyle.SetDisabled(PNMakeTextureBrush(NormalTexture, VisualData.PixelSize));
 
 	ButtonStyle.SetNormalPadding(FMargin(0.0f));
 	ButtonStyle.SetPressedPadding(FMargin(0.0f));

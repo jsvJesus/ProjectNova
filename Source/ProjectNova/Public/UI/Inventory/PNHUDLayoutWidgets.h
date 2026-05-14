@@ -107,6 +107,18 @@ struct PROJECTNOVA_API FPNHUDInventoryItemVisualData
 	int32 Layer = 1;
 };
 
+USTRUCT(BlueprintType)
+struct PROJECTNOVA_API FPNHUDInventoryItemSizeTextureSet
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory Item Texture")
+	TSoftObjectPtr<UTexture2D> ItemBackgroundTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory Item Texture")
+	TSoftObjectPtr<UTexture2D> ItemHoverTexture;
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPNHUDNavigationPageRequestedSignature, EPNInventoryHUDPage, Page);
 
 UCLASS(BlueprintType, Blueprintable)
@@ -293,8 +305,29 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Textures")
 	TSoftObjectPtr<UTexture2D> SlotBlockTexture;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Textures")
-	TSoftObjectPtr<UTexture2D> ItemBackgroundTexture;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Item Textures")
+	FPNHUDInventoryItemSizeTextureSet ItemSize1x1Textures;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Item Textures")
+	FPNHUDInventoryItemSizeTextureSet ItemSize1x2Textures;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Item Textures")
+	FPNHUDInventoryItemSizeTextureSet ItemSize2x1Textures;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Item Textures")
+	FPNHUDInventoryItemSizeTextureSet ItemSize2x2Textures;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Item Textures")
+	FPNHUDInventoryItemSizeTextureSet ItemSize2x3Textures;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Item Textures")
+	FPNHUDInventoryItemSizeTextureSet ItemSize3x2Textures;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Item Textures")
+	FPNHUDInventoryItemSizeTextureSet ItemSize3x3Textures;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Item Textures")
+	FPNHUDInventoryItemSizeTextureSet ItemSize4x2Textures;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Slot Background")
 	TSoftObjectPtr<UTexture2D> InventorySlotsBackgroundTexture;
@@ -460,6 +493,9 @@ protected:
 	void ApplyTextureToBorderImageOnly(UBorder* TargetBorder, UTexture2D* Texture, const FVector2D& ImageSize) const;
 
 	void ApplySlotButtonStyle(UButton* TargetButton, EPNInventorySlotVisualState SlotState, const FVector2D& ImageSize) const;
+
+	void ApplyItemButtonStyle(UButton* TargetButton, const FPNHUDInventoryItemVisualData& VisualData) const;
+	const FPNHUDInventoryItemSizeTextureSet* GetItemTextureSetForSize(const FPNInventoryItemSize& ItemSize) const;
 
 	bool FindItemAtPosition(const FPNInventoryGridPosition& Position, FPNHUDInventoryItemData& OutItem, bool& bOutRootSlot) const;
 
