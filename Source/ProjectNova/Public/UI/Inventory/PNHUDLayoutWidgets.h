@@ -309,21 +309,6 @@ public:
 	FLinearColor HeaderCounterBackgroundColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
-	FLinearColor SlotNoneColor = FLinearColor(0.20f, 0.20f, 0.20f, 0.72f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
-	FLinearColor SlotActiveColor = FLinearColor(0.28f, 0.28f, 0.28f, 0.85f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
-	FLinearColor SlotHoverColor = FLinearColor(0.95f, 0.25f, 0.20f, 0.75f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
-	FLinearColor SlotBlockColor = FLinearColor(0.02f, 0.02f, 0.02f, 0.55f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
-	FLinearColor ItemBackgroundColor = FLinearColor(0.08f, 0.08f, 0.08f, 0.96f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
 	FLinearColor TextColor = FLinearColor(0.88f, 0.92f, 0.94f, 1.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
@@ -454,6 +439,7 @@ protected:
 
 	void ApplyTextureToImage(UImage* TargetImage, UTexture2D* Texture, const FVector2D& ImageSize) const;
 	void ApplyTextureToBorder(UBorder* TargetBorder, UTexture2D* Texture, const FLinearColor& Color, const FVector2D& ImageSize) const;
+	void ApplyTextureToBorderImageOnly(UBorder* TargetBorder, UTexture2D* Texture, const FVector2D& ImageSize) const;
 
 	void ApplySlotButtonStyle(UButton* TargetButton, EPNInventorySlotVisualState SlotState, const FVector2D& ImageSize) const;
 

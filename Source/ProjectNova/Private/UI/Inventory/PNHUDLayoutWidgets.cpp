@@ -22,6 +22,38 @@
 #include "Styling/SlateTypes.h"
 #include "Widgets/SWidget.h"
 
+namespace
+{
+	FSlateBrush PNMakeTextureBrush(UTexture2D* Texture, const FVector2D& ImageSize)
+	{
+		FSlateBrush Brush;
+		Brush.ImageSize = ImageSize;
+
+		if (!Texture)
+		{
+			Brush.DrawAs = ESlateBrushDrawType::NoDrawType;
+			Brush.TintColor = FSlateColor(FLinearColor::Transparent);
+			return Brush;
+		}
+
+		Brush.SetResourceObject(Texture);
+		Brush.DrawAs = ESlateBrushDrawType::Image;
+		Brush.TintColor = FSlateColor(FLinearColor::White);
+
+		return Brush;
+	}
+
+	FSlateBrush PNMakeColorBrush(const FLinearColor& Color, const FVector2D& ImageSize)
+	{
+		FSlateBrush Brush;
+		Brush.ImageSize = ImageSize;
+		Brush.DrawAs = ESlateBrushDrawType::Box;
+		Brush.TintColor = FSlateColor(Color);
+
+		return Brush;
+	}
+}
+
 UPNHUDLayoutWidget::UPNHUDLayoutWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -233,12 +265,6 @@ void UPNInventoryGridWidget::CopyVisualStyleFrom(const UPNInventoryGridWidget* S
 	HeaderBackgroundColor = SourceWidget->HeaderBackgroundColor;
 	HeaderIconBackgroundColor = SourceWidget->HeaderIconBackgroundColor;
 	HeaderCounterBackgroundColor = SourceWidget->HeaderCounterBackgroundColor;
-
-	SlotNoneColor = SourceWidget->SlotNoneColor;
-	SlotActiveColor = SourceWidget->SlotActiveColor;
-	SlotHoverColor = SourceWidget->SlotHoverColor;
-	SlotBlockColor = SourceWidget->SlotBlockColor;
-	ItemBackgroundColor = SourceWidget->ItemBackgroundColor;
 
 	TextColor = SourceWidget->TextColor;
 	CounterTextColor = SourceWidget->CounterTextColor;
@@ -862,10 +888,9 @@ void UPNInventoryGridWidget::RebuildNativeItems()
 		ItemBorder->SetPadding(FMargin(0.0f));
 		ItemBorder->SetVisibility(ESlateVisibility::HitTestInvisible);
 
-		ApplyTextureToBorder(
+		ApplyTextureToBorderImageOnly(
 			ItemBorder,
 			ItemBackgroundTexture.LoadSynchronous(),
-			ItemBackgroundColor,
 			VisualData.PixelSize
 		);
 
@@ -938,17 +963,26 @@ void UPNInventoryGridWidget::ApplyTextureToBorder(UBorder* TargetBorder, UTextur
 		return;
 	}
 
-	FSlateBrush Brush = *FCoreStyle::Get().GetBrush(TEXT("WhiteBrush"));
-
 	if (Texture)
 	{
-		Brush.SetResourceObject(Texture);
+		TargetBorder->SetBrush(PNMakeTextureBrush(Texture, ImageSize));
+		TargetBorder->SetBrushColor(FLinearColor::White);
+		return;
 	}
 
-	Brush.SetImageSize(ImageSize);
+	TargetBorder->SetBrush(PNMakeColorBrush(Color, ImageSize));
+	TargetBorder->SetBrushColor(FLinearColor::White);
+}
 
-	TargetBorder->SetBrush(Brush);
-	TargetBorder->SetBrushColor(Color);
+void UPNInventoryGridWidget::ApplyTextureToBorderImageOnly(UBorder* TargetBorder, UTexture2D* Texture, const FVector2D& ImageSize) const
+{
+	if (!TargetBorder)
+	{
+		return;
+	}
+
+	TargetBorder->SetBrush(PNMakeTextureBrush(Texture, ImageSize));
+	TargetBorder->SetBrushColor(FLinearColor::White);
 }
 
 void UPNInventoryGridWidget::ApplySlotButtonStyle(UButton* TargetButton, EPNInventorySlotVisualState SlotState, const FVector2D& ImageSize) const
@@ -958,61 +992,57 @@ void UPNInventoryGridWidget::ApplySlotButtonStyle(UButton* TargetButton, EPNInve
 		return;
 	}
 
-	TSoftObjectPtr<UTexture2D> NormalTexture;
-	FLinearColor NormalColor = SlotNoneColor;
+	UTexture2D* NormalTexture = nullptr;
+	UTexture2D* HoveredTexture = SlotHoverTexture.LoadSynchronous();
+	UTexture2D* PressedTexture = nullptr;
+	UTexture2D* DisabledTexture = nullptr;
 
 	switch (SlotState)
 	{
 	case EPNInventorySlotVisualState::ActiveSlot:
-		NormalTexture = SlotActiveTexture;
-		NormalColor = SlotActiveColor;
+		NormalTexture = SlotActiveTexture.LoadSynchronous();
+		PressedTexture = NormalTexture;
+		DisabledTexture = NormalTexture;
+		break;
+
+	case EPNInventorySlotVisualState::HoverSlot:
+		NormalTexture = SlotHoverTexture.LoadSynchronous();
+		PressedTexture = NormalTexture;
+		DisabledTexture = NormalTexture;
 		break;
 
 	case EPNInventorySlotVisualState::BlockSlot:
-		NormalTexture = SlotBlockTexture;
-		NormalColor = SlotBlockColor;
+		NormalTexture = SlotBlockTexture.LoadSynchronous();
+		HoveredTexture = NormalTexture;
+		PressedTexture = NormalTexture;
+		DisabledTexture = NormalTexture;
 		break;
 
 	case EPNInventorySlotVisualState::NoneSlot:
-	case EPNInventorySlotVisualState::HoverSlot:
 	default:
-		NormalTexture = SlotNoneTexture;
-		NormalColor = SlotNoneColor;
+		NormalTexture = SlotNoneTexture.LoadSynchronous();
+		PressedTexture = NormalTexture;
+		DisabledTexture = NormalTexture;
 		break;
 	}
 
-	const bool bBlocked = SlotState == EPNInventorySlotVisualState::BlockSlot;
-
-	TSoftObjectPtr<UTexture2D> HoverTexture = bBlocked ? SlotBlockTexture : SlotHoverTexture;
-	FLinearColor HoverColor = bBlocked ? SlotBlockColor : SlotHoverColor;
-
-	auto MakeBrush = [ImageSize](UTexture2D* Texture, const FLinearColor& Color)
+	if (!HoveredTexture)
 	{
-		FSlateBrush Brush = *FCoreStyle::Get().GetBrush(TEXT("WhiteBrush"));
-
-		if (Texture)
-		{
-			Brush.SetResourceObject(Texture);
-		}
-
-		Brush.SetImageSize(ImageSize);
-		Brush.TintColor = FSlateColor(Color);
-
-		return Brush;
-	};
+		HoveredTexture = NormalTexture;
+	}
 
 	FButtonStyle ButtonStyle;
-	ButtonStyle.SetNormal(MakeBrush(NormalTexture.LoadSynchronous(), NormalColor));
-	ButtonStyle.SetHovered(MakeBrush(HoverTexture.LoadSynchronous(), HoverColor));
-	ButtonStyle.SetPressed(MakeBrush(HoverTexture.LoadSynchronous(), HoverColor));
-	ButtonStyle.SetDisabled(MakeBrush(SlotBlockTexture.LoadSynchronous(), SlotBlockColor));
+	ButtonStyle.SetNormal(PNMakeTextureBrush(NormalTexture, ImageSize));
+	ButtonStyle.SetHovered(PNMakeTextureBrush(HoveredTexture, ImageSize));
+	ButtonStyle.SetPressed(PNMakeTextureBrush(PressedTexture, ImageSize));
+	ButtonStyle.SetDisabled(PNMakeTextureBrush(DisabledTexture, ImageSize));
 
-	ButtonStyle.NormalPadding = FMargin(0.0f);
-	ButtonStyle.PressedPadding = FMargin(0.0f);
+	ButtonStyle.SetNormalPadding(FMargin(0.0f));
+	ButtonStyle.SetPressedPadding(FMargin(0.0f));
 
 	TargetButton->SetStyle(ButtonStyle);
-	TargetButton->SetBackgroundColor(FLinearColor::White);
 	TargetButton->SetColorAndOpacity(FLinearColor::White);
+	TargetButton->SetBackgroundColor(FLinearColor::White);
 }
 
 bool UPNInventoryGridWidget::FindItemAtPosition(const FPNInventoryGridPosition& Position, FPNHUDInventoryItemData& OutItem, bool& bOutRootSlot) const
