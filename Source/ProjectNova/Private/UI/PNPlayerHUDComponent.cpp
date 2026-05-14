@@ -575,22 +575,28 @@ FPNHUDEquipmentData UPNPlayerHUDComponent::BuildEquipmentData() const
 		EquipmentData.EquipmentSlots.Add(HUDSlot);
 	}
 
+	const int32 HelmetUnlockedSlots = EquipmentComponent->GetUnlockedInternalSlotCount(EPNEquipmentInternalContainer::Helmet);
+
 	for (const FPNEquipmentInternalSlotEntry& InternalSlotEntry : EquipmentComponent->GetHelmetInternalSlots())
 	{
 		FPNHUDInternalEquipmentSlotData HUDSlot;
 		HUDSlot.Container = InternalSlotEntry.Container;
 		HUDSlot.SlotIndex = InternalSlotEntry.SlotIndex;
+		HUDSlot.bUnlocked = InternalSlotEntry.SlotIndex >= 0 && InternalSlotEntry.SlotIndex < HelmetUnlockedSlots;
 		HUDSlot.bOccupied = InternalSlotEntry.IsOccupied();
 		HUDSlot.Item = BuildItemViewDataFromRep(InternalSlotEntry.InstanceData);
 
 		EquipmentData.HelmetInternalSlots.Add(HUDSlot);
 	}
 
+	const int32 ArmorUnlockedSlots = EquipmentComponent->GetUnlockedInternalSlotCount(EPNEquipmentInternalContainer::Armor);
+
 	for (const FPNEquipmentInternalSlotEntry& InternalSlotEntry : EquipmentComponent->GetArmorInternalSlots())
 	{
 		FPNHUDInternalEquipmentSlotData HUDSlot;
 		HUDSlot.Container = InternalSlotEntry.Container;
 		HUDSlot.SlotIndex = InternalSlotEntry.SlotIndex;
+		HUDSlot.bUnlocked = InternalSlotEntry.SlotIndex >= 0 && InternalSlotEntry.SlotIndex < ArmorUnlockedSlots;
 		HUDSlot.bOccupied = InternalSlotEntry.IsOccupied();
 		HUDSlot.Item = BuildItemViewDataFromRep(InternalSlotEntry.InstanceData);
 

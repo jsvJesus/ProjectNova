@@ -187,6 +187,9 @@ struct PROJECTNOVA_API FPNHUDInternalEquipmentSlotData
 	int32 SlotIndex = INDEX_NONE;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Equipment")
+	bool bUnlocked = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Equipment")
 	bool bOccupied = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Equipment")

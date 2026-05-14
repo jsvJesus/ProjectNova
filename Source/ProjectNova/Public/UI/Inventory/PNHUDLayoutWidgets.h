@@ -577,19 +577,243 @@ class PROJECTNOVA_API UPNEquipmentLayoutWidget : public UPNHUDLayoutWidget
 {
 	GENERATED_BODY()
 
+public:
+	UPNEquipmentLayoutWidget(const FObjectInitializer& ObjectInitializer);
+
+protected:
+	virtual TSharedRef<SWidget> RebuildWidget() override;
+	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+
+	virtual void NativePreConstruct() override;
+	virtual void NativeConstruct() override;
+
 protected:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Equipment")
 	FPNHUDEquipmentData EquipmentData;
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Native Render")
+	bool bBuildNativeEquipmentLayout = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Native Render")
+	bool bPreviewInDesigner = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Header")
+	FText DisplayTitle;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Layout", meta = (ClampMin = "1.0"))
+	float PanelWidth = 512.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Layout", meta = (ClampMin = "1.0"))
+	float PanelHeight = 512.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Layout", meta = (ClampMin = "1.0"))
+	float HeaderHeight = 64.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Layout", meta = (ClampMin = "0.0"))
+	float HeaderBottomSpacing = 10.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Layout", meta = (ClampMin = "8.0"))
+	float SlotSize = 64.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Layout", meta = (ClampMin = "0.0"))
+	float SlotSpacing = 8.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Layout", meta = (ClampMin = "0.0"))
+	float ColumnSpacing = 16.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Layout", meta = (ClampMin = "8.0"))
+	float InternalSlotSize = 64.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Layout", meta = (ClampMin = "0.0"))
+	float InternalSlotSpacing = 4.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Layout", meta = (ClampMin = "1"))
+	int32 InternalGridColumns = 2;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Style", meta = (ClampMin = "1"))
+	int32 TitleFontSize = 18;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Style", meta = (ClampMin = "1"))
+	int32 LabelFontSize = 11;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Style", meta = (ClampMin = "1"))
+	int32 HotkeyFontSize = 14;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Style")
+	FLinearColor TextColor = FLinearColor(0.88f, 0.92f, 0.94f, 1.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Style")
+	FLinearColor LockedTextColor = FLinearColor(0.35f, 0.35f, 0.35f, 1.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Textures")
+	TSoftObjectPtr<UTexture2D> RootBackgroundTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Textures")
+	TSoftObjectPtr<UTexture2D> HeaderBackgroundTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Textures")
+	TSoftObjectPtr<UTexture2D> EquipmentSlotNoneTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Textures")
+	TSoftObjectPtr<UTexture2D> EquipmentSlotActiveTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Textures")
+	TSoftObjectPtr<UTexture2D> EquipmentSlotHoverTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Textures")
+	TSoftObjectPtr<UTexture2D> EquipmentSlotBlockTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Textures")
+	TSoftObjectPtr<UTexture2D> InternalSlotNoneTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Textures")
+	TSoftObjectPtr<UTexture2D> InternalSlotActiveTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Textures")
+	TSoftObjectPtr<UTexture2D> InternalSlotHoverTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Textures")
+	TSoftObjectPtr<UTexture2D> InternalSlotBlockTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Item Textures")
+	TSoftObjectPtr<UTexture2D> ItemBackgroundTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Item Textures")
+	TSoftObjectPtr<UTexture2D> ItemHoverTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Slot Icons")
+	TSoftObjectPtr<UTexture2D> PrimaryWeapon1Icon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Slot Icons")
+	TSoftObjectPtr<UTexture2D> PrimaryWeapon2Icon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Slot Icons")
+	TSoftObjectPtr<UTexture2D> SidearmIcon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Slot Icons")
+	TSoftObjectPtr<UTexture2D> KnifeIcon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Slot Icons")
+	TSoftObjectPtr<UTexture2D> HelmetIcon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Slot Icons")
+	TSoftObjectPtr<UTexture2D> ArmorIcon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Slot Icons")
+	TSoftObjectPtr<UTexture2D> GlovesIcon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Slot Icons")
+	TSoftObjectPtr<UTexture2D> BackpackIcon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Slot Icons")
+	TSoftObjectPtr<UTexture2D> HelmetInternalIcon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Slot Icons")
+	TSoftObjectPtr<UTexture2D> ArmorInternalIcon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Preview", meta = (ClampMin = "0", ClampMax = "4"))
+	int32 PreviewHelmetUnlockedSlots = 4;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Preview", meta = (ClampMin = "0", ClampMax = "4"))
+	int32 PreviewArmorUnlockedSlots = 4;
+
+public:
 	UFUNCTION(BlueprintCallable, Category = "Equipment")
 	void SetEquipmentData(const FPNHUDEquipmentData& InEquipmentData);
+
+	UFUNCTION(BlueprintCallable, Category = "Equipment|Native Render")
+	void RefreshNativeEquipmentLayout();
 
 	UFUNCTION(BlueprintPure, Category = "Equipment")
 	const FPNHUDEquipmentData& GetEquipmentData() const;
 
+	UFUNCTION(BlueprintPure, Category = "Equipment")
+	FPNHUDEquipmentSlotData GetEquipmentSlotData(EPNEquipmentSlot EquipmentSlot) const;
+
+	UFUNCTION(BlueprintPure, Category = "Equipment")
+	FPNHUDInternalEquipmentSlotData GetInternalEquipmentSlotData(EPNEquipmentInternalContainer Container, int32 SlotIndex) const;
+
+	UFUNCTION(BlueprintPure, Category = "Equipment")
+	bool IsEquipmentSlotOccupied(EPNEquipmentSlot EquipmentSlot) const;
+
+	UFUNCTION(BlueprintPure, Category = "Equipment")
+	bool IsInternalEquipmentSlotUnlocked(EPNEquipmentInternalContainer Container, int32 SlotIndex) const;
+
+	UFUNCTION(BlueprintPure, Category = "Equipment")
+	bool IsInternalEquipmentSlotOccupied(EPNEquipmentInternalContainer Container, int32 SlotIndex) const;
+
+	UFUNCTION(BlueprintPure, Category = "Equipment")
+	UPNItemDataAsset* GetEquipmentSlotItemData(EPNEquipmentSlot EquipmentSlot) const;
+
+	UFUNCTION(BlueprintPure, Category = "Equipment")
+	UPNItemDataAsset* GetInternalEquipmentSlotItemData(EPNEquipmentInternalContainer Container, int32 SlotIndex) const;
+
+	UFUNCTION(BlueprintPure, Category = "Equipment|Text")
+	FText GetEquipmentSlotLabel(EPNEquipmentSlot EquipmentSlot) const;
+
+	UFUNCTION(BlueprintPure, Category = "Equipment|Text")
+	FText GetEquipmentSlotHotkeyText(EPNEquipmentSlot EquipmentSlot) const;
+
 	UFUNCTION(BlueprintImplementableEvent, Category = "Equipment")
 	void BP_OnEquipmentDataUpdated(const FPNHUDEquipmentData& InEquipmentData);
+
+protected:
+	UPROPERTY(Transient)
+	TObjectPtr<USizeBox> EquipmentRootSizeBox = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> EquipmentRootBorder = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UVerticalBox> EquipmentRootVerticalBox = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> EquipmentHeaderBorder = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> EquipmentHeaderText = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UHorizontalBox> EquipmentMainBox = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UVerticalBox> WeaponColumnBox = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UVerticalBox> CenterColumnBox = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UVerticalBox> GearColumnBox = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UUniformGridPanel> HelmetInternalGrid = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UUniformGridPanel> ArmorInternalGrid = nullptr;
+
+protected:
+	void BuildPreviewEquipmentData();
+	void BuildNativeEquipmentRoot();
+	void RebuildNativeEquipmentSlots();
+
+	void AddEquipmentSlotToBox(EPNEquipmentSlot EquipmentSlot, UVerticalBox* TargetBox);
+	void AddInternalSlotToGrid(EPNEquipmentInternalContainer Container, int32 SlotIndex, UUniformGridPanel* TargetGrid);
+
+	void AddSectionTitle(UVerticalBox* TargetBox, const FText& TitleText);
+
+	void ApplyEquipmentButtonStyle(UButton* TargetButton, EPNInventorySlotVisualState SlotState, bool bInternalSlot, const FVector2D& ImageSize) const;
+	void ApplyEquipmentTextureToImage(UImage* TargetImage, UTexture2D* Texture, const FVector2D& ImageSize) const;
+	void ApplyEquipmentTextureToBorderImageOnly(UBorder* TargetBorder, UTexture2D* Texture, const FVector2D& ImageSize) const;
+
+	bool FindEquipmentSlotData(EPNEquipmentSlot EquipmentSlot, FPNHUDEquipmentSlotData& OutSlotData) const;
+	bool FindInternalEquipmentSlotData(EPNEquipmentInternalContainer Container, int32 SlotIndex, FPNHUDInternalEquipmentSlotData& OutSlotData) const;
+
+	EPNInventorySlotVisualState GetEquipmentSlotVisualState(const FPNHUDEquipmentSlotData& SlotData) const;
+	EPNInventorySlotVisualState GetInternalSlotVisualState(const FPNHUDInternalEquipmentSlotData& SlotData) const;
+
+	UTexture2D* GetEquipmentSlotPlaceholderTexture(EPNEquipmentSlot EquipmentSlot) const;
+	UTexture2D* GetInternalSlotPlaceholderTexture(EPNEquipmentInternalContainer Container) const;
 };
 
 UCLASS(BlueprintType, Blueprintable)
