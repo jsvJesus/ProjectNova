@@ -443,9 +443,11 @@ void UPNInventoryHUDWidget::BuildEquipmentSlotWidget(
 		return;
 	}
 
+	const FVector2D RenderSize = GetEquipmentSlotRenderSize(EquipmentSlot);
+
 	TargetSizeBox->ClearChildren();
-	TargetSizeBox->SetWidthOverride(EquipmentSlotSize);
-	TargetSizeBox->SetHeightOverride(EquipmentSlotSize);
+	TargetSizeBox->SetWidthOverride(RenderSize.X);
+	TargetSizeBox->SetHeightOverride(RenderSize.Y);
 
 	UButton* SlotButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
 	SlotButton->SetIsEnabled(true);
@@ -456,7 +458,7 @@ void UPNInventoryHUDWidget::BuildEquipmentSlotWidget(
 		false,
 		false,
 		false,
-		FVector2D(EquipmentSlotSize, EquipmentSlotSize)
+		RenderSize
 	);
 
 	UOverlay* SlotOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
@@ -472,7 +474,7 @@ void UPNInventoryHUDWidget::BuildEquipmentSlotWidget(
 			ApplyTextureToEquipmentImage(
 				ItemBackgroundImage,
 				ItemBackgroundTexture,
-				FVector2D(EquipmentSlotSize, EquipmentSlotSize)
+				RenderSize
 			);
 
 			if (UOverlaySlot* ItemBackgroundOverlaySlot = SlotOverlay->AddChildToOverlay(ItemBackgroundImage))
@@ -489,12 +491,12 @@ void UPNInventoryHUDWidget::BuildEquipmentSlotWidget(
 				UImage* ItemIconImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
 				ItemIconImage->SetVisibility(ESlateVisibility::HitTestInvisible);
 
-				const float IconSize = EquipmentSlotSize * 0.78f;
+				const FVector2D IconSize = RenderSize * 0.78f;
 
 				ApplyTextureToEquipmentImage(
 					ItemIconImage,
 					ItemIconTexture,
-					FVector2D(IconSize, IconSize)
+					IconSize
 				);
 
 				if (UOverlaySlot* ItemIconOverlaySlot = SlotOverlay->AddChildToOverlay(ItemIconImage))
@@ -539,9 +541,14 @@ void UPNInventoryHUDWidget::BuildInternalEquipmentSlotWidget(
 		return;
 	}
 
+	const FVector2D RenderSize(
+		FMath::Max(8.0f, EquipmentInternalSlotSize.X),
+		FMath::Max(8.0f, EquipmentInternalSlotSize.Y)
+	);
+
 	TargetSizeBox->ClearChildren();
-	TargetSizeBox->SetWidthOverride(EquipmentInternalSlotSize);
-	TargetSizeBox->SetHeightOverride(EquipmentInternalSlotSize);
+	TargetSizeBox->SetWidthOverride(RenderSize.X);
+	TargetSizeBox->SetHeightOverride(RenderSize.Y);
 
 	UButton* SlotButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
 	SlotButton->SetIsEnabled(SlotData.bUnlocked);
@@ -552,7 +559,7 @@ void UPNInventoryHUDWidget::BuildInternalEquipmentSlotWidget(
 		false,
 		!SlotData.bUnlocked,
 		true,
-		FVector2D(EquipmentInternalSlotSize, EquipmentInternalSlotSize)
+		RenderSize
 	);
 
 	UOverlay* SlotOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
@@ -568,7 +575,7 @@ void UPNInventoryHUDWidget::BuildInternalEquipmentSlotWidget(
 			ApplyTextureToEquipmentImage(
 				ItemBackgroundImage,
 				ItemBackgroundTexture,
-				FVector2D(EquipmentInternalSlotSize, EquipmentInternalSlotSize)
+				RenderSize
 			);
 
 			if (UOverlaySlot* ItemBackgroundOverlaySlot = SlotOverlay->AddChildToOverlay(ItemBackgroundImage))
@@ -585,12 +592,12 @@ void UPNInventoryHUDWidget::BuildInternalEquipmentSlotWidget(
 				UImage* ItemIconImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
 				ItemIconImage->SetVisibility(ESlateVisibility::HitTestInvisible);
 
-				const float IconSize = EquipmentInternalSlotSize * 0.76f;
+				const FVector2D IconSize = RenderSize * 0.76f;
 
 				ApplyTextureToEquipmentImage(
 					ItemIconImage,
 					ItemIconTexture,
-					FVector2D(IconSize, IconSize)
+					IconSize
 				);
 
 				if (UOverlaySlot* ItemIconOverlaySlot = SlotOverlay->AddChildToOverlay(ItemIconImage))
@@ -782,4 +789,29 @@ void UPNInventoryHUDWidget::ApplyTextureToEquipmentImage(
 	TargetImage->SetBrush(Brush);
 	TargetImage->SetColorAndOpacity(FLinearColor::White);
 	TargetImage->SetVisibility(ESlateVisibility::Visible);
+}
+
+FVector2D UPNInventoryHUDWidget::GetEquipmentSlotRenderSize(EPNEquipmentSlot EquipmentSlot) const
+{
+	switch (EquipmentSlot)
+	{
+	case EPNEquipmentSlot::PrimaryWeapon1:
+	case EPNEquipmentSlot::PrimaryWeapon2:
+		return FVector2D(
+			FMath::Max(8.0f, EquipmentPrimaryWeaponSlotSize.X),
+			FMath::Max(8.0f, EquipmentPrimaryWeaponSlotSize.Y)
+		);
+
+	case EPNEquipmentSlot::Sidearm:
+	case EPNEquipmentSlot::Knife:
+	case EPNEquipmentSlot::Helmet:
+	case EPNEquipmentSlot::Armor:
+	case EPNEquipmentSlot::Gloves:
+	case EPNEquipmentSlot::Backpack:
+	default:
+		return FVector2D(
+			FMath::Max(8.0f, EquipmentDefaultSlotSize.X),
+			FMath::Max(8.0f, EquipmentDefaultSlotSize.Y)
+		);
+	}
 }

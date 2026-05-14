@@ -139,11 +139,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectNova|Inventory HUD")
 	const FPNHUDPlayerInfoData& GetPlayerInfoData() const;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectNova|Inventory HUD|Equipment Style", meta = (ClampMin = "8.0"))
-	float EquipmentSlotSize = 64.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectNova|Inventory HUD|Equipment Style")
+	FVector2D EquipmentPrimaryWeaponSlotSize = FVector2D(256.0f, 128.0f);
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectNova|Inventory HUD|Equipment Style", meta = (ClampMin = "8.0"))
-	float EquipmentInternalSlotSize = 64.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectNova|Inventory HUD|Equipment Style")
+	FVector2D EquipmentDefaultSlotSize = FVector2D(128.0f, 128.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectNova|Inventory HUD|Equipment Style")
+	FVector2D EquipmentInternalSlotSize = FVector2D(64.0f, 64.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectNova|Inventory HUD|Equipment Style", meta = (ClampMin = "1"))
 	int32 EquipmentWeaponLabelFontSize = 14;
@@ -231,6 +234,8 @@ protected:
 		UTexture2D* Texture,
 		const FVector2D& ImageSize
 	) const;
+
+	FVector2D GetEquipmentSlotRenderSize(EPNEquipmentSlot EquipmentSlot) const;
 
 	UFUNCTION()
 	void HandleNavigationPageRequested(EPNInventoryHUDPage RequestedPage);
