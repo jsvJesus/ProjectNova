@@ -296,6 +296,24 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Textures")
 	TSoftObjectPtr<UTexture2D> ItemBackgroundTexture;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Slot Background")
+	TSoftObjectPtr<UTexture2D> InventorySlotsBackgroundTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Slot Background")
+	TSoftObjectPtr<UTexture2D> VestSlotsBackgroundTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Slot Background")
+	TSoftObjectPtr<UTexture2D> BackpackSlotsBackgroundTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Slot Background", meta = (ClampMin = "1.0"))
+	FVector2D InventorySlotsBackgroundSize = FVector2D(512.0f, 128.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Slot Background", meta = (ClampMin = "1.0"))
+	FVector2D VestSlotsBackgroundSize = FVector2D(512.0f, 128.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Slot Background", meta = (ClampMin = "1.0"))
+	FVector2D BackpackSlotsBackgroundSize = FVector2D(512.0f, 512.0f);
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
 	FLinearColor RootBackgroundColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -446,6 +464,8 @@ protected:
 	bool FindItemAtPosition(const FPNInventoryGridPosition& Position, FPNHUDInventoryItemData& OutItem, bool& bOutRootSlot) const;
 
 	UTexture2D* GetHeaderIconTexture() const;
+	UTexture2D* GetSlotsBackgroundTexture() const;
+	FVector2D GetSlotsBackgroundSize() const;
 
 	int32 GetDefaultVisualSlotCountForPanel() const;
 	float GetGridContentHeight() const;
