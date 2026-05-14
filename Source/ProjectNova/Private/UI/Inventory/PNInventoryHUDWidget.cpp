@@ -3,6 +3,17 @@
 #include "Components/Widget.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/Button.h"
+#include "Components/Image.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
+#include "Components/SizeBox.h"
+#include "Components/TextBlock.h"
+#include "Items/PNItemDataAsset.h"
+#include "Styling/SlateBrush.h"
+#include "Styling/SlateTypes.h"
+#include "Styling/CoreStyle.h"
 
 UPNInventoryHUDWidget::UPNInventoryHUDWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -152,6 +163,8 @@ void UPNInventoryHUDWidget::PushHUDDataToLayouts()
 		EquipmentLayout->SetEquipmentData(HUDData.Equipment);
 	}
 
+	PushEquipmentDataToBoundSlots();
+
 	if (ContainerLayout)
 	{
 		ContainerLayout->SetHUDData(HUDData);
@@ -286,4 +299,487 @@ FPNHUDPlayerInfoData UPNInventoryHUDWidget::BuildPlayerInfoData() const
 void UPNInventoryHUDWidget::HandleNavigationPageRequested(EPNInventoryHUDPage RequestedPage)
 {
 	SetActivePage(RequestedPage);
+}
+
+namespace
+{
+	FSlateBrush PNMakeEquipmentTextureBrush(UTexture2D* Texture, const FVector2D& ImageSize)
+	{
+		FSlateBrush Brush;
+		Brush.ImageSize = ImageSize;
+
+		if (!Texture)
+		{
+			Brush.DrawAs = ESlateBrushDrawType::NoDrawType;
+			Brush.TintColor = FSlateColor(FLinearColor::Transparent);
+			return Brush;
+		}
+
+		Brush.SetResourceObject(Texture);
+		Brush.DrawAs = ESlateBrushDrawType::Image;
+		Brush.TintColor = FSlateColor(FLinearColor::White);
+
+		return Brush;
+	}
+}
+
+void UPNInventoryHUDWidget::PushEquipmentDataToBoundSlots()
+{
+	const FPNHUDEquipmentData& CurrentEquipmentData = GetHUDData().Equipment;
+
+	BuildEquipmentSlotWidget(
+		Equip_PrimaryWeapon1,
+		EPNEquipmentSlot::PrimaryWeapon1,
+		FindHUDSlotData(EPNEquipmentSlot::PrimaryWeapon1)
+	);
+
+	BuildEquipmentSlotWidget(
+		Equip_PrimaryWeapon2,
+		EPNEquipmentSlot::PrimaryWeapon2,
+		FindHUDSlotData(EPNEquipmentSlot::PrimaryWeapon2)
+	);
+
+	BuildEquipmentSlotWidget(
+		Equip_Sidearm,
+		EPNEquipmentSlot::Sidearm,
+		FindHUDSlotData(EPNEquipmentSlot::Sidearm)
+	);
+
+	BuildEquipmentSlotWidget(
+		Equip_Knife,
+		EPNEquipmentSlot::Knife,
+		FindHUDSlotData(EPNEquipmentSlot::Knife)
+	);
+
+	BuildEquipmentSlotWidget(
+		Equip_Helmet,
+		EPNEquipmentSlot::Helmet,
+		FindHUDSlotData(EPNEquipmentSlot::Helmet)
+	);
+
+	BuildEquipmentSlotWidget(
+		Equip_Armor,
+		EPNEquipmentSlot::Armor,
+		FindHUDSlotData(EPNEquipmentSlot::Armor)
+	);
+
+	BuildEquipmentSlotWidget(
+		Equip_Gloves,
+		EPNEquipmentSlot::Gloves,
+		FindHUDSlotData(EPNEquipmentSlot::Gloves)
+	);
+
+	BuildEquipmentSlotWidget(
+		Equip_Backpack,
+		EPNEquipmentSlot::Backpack,
+		FindHUDSlotData(EPNEquipmentSlot::Backpack)
+	);
+
+	BuildInternalEquipmentSlotWidget(
+		HelmetInternal_0,
+		EPNEquipmentInternalContainer::Helmet,
+		0,
+		FindHUDInternalSlotData(EPNEquipmentInternalContainer::Helmet, 0)
+	);
+
+	BuildInternalEquipmentSlotWidget(
+		HelmetInternal_1,
+		EPNEquipmentInternalContainer::Helmet,
+		1,
+		FindHUDInternalSlotData(EPNEquipmentInternalContainer::Helmet, 1)
+	);
+
+	BuildInternalEquipmentSlotWidget(
+		HelmetInternal_2,
+		EPNEquipmentInternalContainer::Helmet,
+		2,
+		FindHUDInternalSlotData(EPNEquipmentInternalContainer::Helmet, 2)
+	);
+
+	BuildInternalEquipmentSlotWidget(
+		HelmetInternal_3,
+		EPNEquipmentInternalContainer::Helmet,
+		3,
+		FindHUDInternalSlotData(EPNEquipmentInternalContainer::Helmet, 3)
+	);
+
+	BuildInternalEquipmentSlotWidget(
+		ArmorInternal_0,
+		EPNEquipmentInternalContainer::Armor,
+		0,
+		FindHUDInternalSlotData(EPNEquipmentInternalContainer::Armor, 0)
+	);
+
+	BuildInternalEquipmentSlotWidget(
+		ArmorInternal_1,
+		EPNEquipmentInternalContainer::Armor,
+		1,
+		FindHUDInternalSlotData(EPNEquipmentInternalContainer::Armor, 1)
+	);
+
+	BuildInternalEquipmentSlotWidget(
+		ArmorInternal_2,
+		EPNEquipmentInternalContainer::Armor,
+		2,
+		FindHUDInternalSlotData(EPNEquipmentInternalContainer::Armor, 2)
+	);
+
+	BuildInternalEquipmentSlotWidget(
+		ArmorInternal_3,
+		EPNEquipmentInternalContainer::Armor,
+		3,
+		FindHUDInternalSlotData(EPNEquipmentInternalContainer::Armor, 3)
+	);
+}
+
+void UPNInventoryHUDWidget::BuildEquipmentSlotWidget(
+	USizeBox* TargetSizeBox,
+	EPNEquipmentSlot EquipmentSlot,
+	const FPNHUDEquipmentSlotData& SlotData
+)
+{
+	if (!WidgetTree || !TargetSizeBox)
+	{
+		return;
+	}
+
+	TargetSizeBox->ClearChildren();
+	TargetSizeBox->SetWidthOverride(EquipmentSlotSize);
+	TargetSizeBox->SetHeightOverride(EquipmentSlotSize);
+
+	UButton* SlotButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+	SlotButton->SetIsEnabled(true);
+
+	ApplyEquipmentButtonStyle(
+		SlotButton,
+		SlotData.bOccupied,
+		false,
+		false,
+		false,
+		FVector2D(EquipmentSlotSize, EquipmentSlotSize)
+	);
+
+	UOverlay* SlotOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+	SlotOverlay->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+
+	if (SlotData.bOccupied && SlotData.Item.bValid && SlotData.Item.ItemData)
+	{
+		if (UTexture2D* ItemBackgroundTexture = EquipmentItemBackgroundTexture.LoadSynchronous())
+		{
+			UImage* ItemBackgroundImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+			ItemBackgroundImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+			ApplyTextureToEquipmentImage(
+				ItemBackgroundImage,
+				ItemBackgroundTexture,
+				FVector2D(EquipmentSlotSize, EquipmentSlotSize)
+			);
+
+			if (UOverlaySlot* ItemBackgroundOverlaySlot = SlotOverlay->AddChildToOverlay(ItemBackgroundImage))
+			{
+				ItemBackgroundOverlaySlot->SetHorizontalAlignment(HAlign_Fill);
+				ItemBackgroundOverlaySlot->SetVerticalAlignment(VAlign_Fill);
+			}
+		}
+
+		if (!SlotData.Item.ItemData->Visual.Icon.IsNull())
+		{
+			if (UTexture2D* ItemIconTexture = SlotData.Item.ItemData->Visual.Icon.LoadSynchronous())
+			{
+				UImage* ItemIconImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+				ItemIconImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+				const float IconSize = EquipmentSlotSize * 0.78f;
+
+				ApplyTextureToEquipmentImage(
+					ItemIconImage,
+					ItemIconTexture,
+					FVector2D(IconSize, IconSize)
+				);
+
+				if (UOverlaySlot* ItemIconOverlaySlot = SlotOverlay->AddChildToOverlay(ItemIconImage))
+				{
+					ItemIconOverlaySlot->SetHorizontalAlignment(HAlign_Center);
+					ItemIconOverlaySlot->SetVerticalAlignment(VAlign_Center);
+				}
+			}
+		}
+	}
+
+	if (IsWeaponEquipmentSlot(EquipmentSlot))
+	{
+		UTextBlock* LabelText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		LabelText->SetText(GetWeaponSlotLabel(EquipmentSlot));
+		LabelText->SetColorAndOpacity(FSlateColor(EquipmentWeaponLabelColor));
+		LabelText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Bold"), EquipmentWeaponLabelFontSize));
+		LabelText->SetJustification(ETextJustify::Center);
+		LabelText->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+		if (UOverlaySlot* LabelOverlaySlot = SlotOverlay->AddChildToOverlay(LabelText))
+		{
+			LabelOverlaySlot->SetHorizontalAlignment(HAlign_Left);
+			LabelOverlaySlot->SetVerticalAlignment(VAlign_Top);
+			LabelOverlaySlot->SetPadding(FMargin(5.0f, 3.0f, 0.0f, 0.0f));
+		}
+	}
+
+	SlotButton->AddChild(SlotOverlay);
+	TargetSizeBox->AddChild(SlotButton);
+}
+
+void UPNInventoryHUDWidget::BuildInternalEquipmentSlotWidget(
+	USizeBox* TargetSizeBox,
+	EPNEquipmentInternalContainer InternalContainer,
+	int32 InternalSlotIndex,
+	const FPNHUDInternalEquipmentSlotData& SlotData
+)
+{
+	if (!WidgetTree || !TargetSizeBox)
+	{
+		return;
+	}
+
+	TargetSizeBox->ClearChildren();
+	TargetSizeBox->SetWidthOverride(EquipmentInternalSlotSize);
+	TargetSizeBox->SetHeightOverride(EquipmentInternalSlotSize);
+
+	UButton* SlotButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+	SlotButton->SetIsEnabled(SlotData.bUnlocked);
+
+	ApplyEquipmentButtonStyle(
+		SlotButton,
+		SlotData.bOccupied,
+		false,
+		!SlotData.bUnlocked,
+		true,
+		FVector2D(EquipmentInternalSlotSize, EquipmentInternalSlotSize)
+	);
+
+	UOverlay* SlotOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+	SlotOverlay->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+
+	if (SlotData.bOccupied && SlotData.Item.bValid && SlotData.Item.ItemData)
+	{
+		if (UTexture2D* ItemBackgroundTexture = EquipmentInternalItemBackgroundTexture.LoadSynchronous())
+		{
+			UImage* ItemBackgroundImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+			ItemBackgroundImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+			ApplyTextureToEquipmentImage(
+				ItemBackgroundImage,
+				ItemBackgroundTexture,
+				FVector2D(EquipmentInternalSlotSize, EquipmentInternalSlotSize)
+			);
+
+			if (UOverlaySlot* ItemBackgroundOverlaySlot = SlotOverlay->AddChildToOverlay(ItemBackgroundImage))
+			{
+				ItemBackgroundOverlaySlot->SetHorizontalAlignment(HAlign_Fill);
+				ItemBackgroundOverlaySlot->SetVerticalAlignment(VAlign_Fill);
+			}
+		}
+
+		if (!SlotData.Item.ItemData->Visual.Icon.IsNull())
+		{
+			if (UTexture2D* ItemIconTexture = SlotData.Item.ItemData->Visual.Icon.LoadSynchronous())
+			{
+				UImage* ItemIconImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+				ItemIconImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+				const float IconSize = EquipmentInternalSlotSize * 0.76f;
+
+				ApplyTextureToEquipmentImage(
+					ItemIconImage,
+					ItemIconTexture,
+					FVector2D(IconSize, IconSize)
+				);
+
+				if (UOverlaySlot* ItemIconOverlaySlot = SlotOverlay->AddChildToOverlay(ItemIconImage))
+				{
+					ItemIconOverlaySlot->SetHorizontalAlignment(HAlign_Center);
+					ItemIconOverlaySlot->SetVerticalAlignment(VAlign_Center);
+				}
+			}
+		}
+	}
+
+	SlotButton->AddChild(SlotOverlay);
+	TargetSizeBox->AddChild(SlotButton);
+}
+
+FPNHUDEquipmentSlotData UPNInventoryHUDWidget::FindHUDSlotData(EPNEquipmentSlot EquipmentSlot) const
+{
+	FPNHUDEquipmentSlotData Result;
+	Result.Slot = EquipmentSlot;
+
+	const FPNHUDEquipmentData& CurrentEquipmentData = GetHUDData().Equipment;
+
+	for (const FPNHUDEquipmentSlotData& SlotData : CurrentEquipmentData.EquipmentSlots)
+	{
+		if (SlotData.Slot == EquipmentSlot)
+		{
+			return SlotData;
+		}
+	}
+
+	return Result;
+}
+
+FPNHUDInternalEquipmentSlotData UPNInventoryHUDWidget::FindHUDInternalSlotData(
+	EPNEquipmentInternalContainer InternalContainer,
+	int32 InternalSlotIndex
+) const
+{
+	FPNHUDInternalEquipmentSlotData Result;
+	Result.Container = InternalContainer;
+	Result.SlotIndex = InternalSlotIndex;
+	Result.bUnlocked = false;
+	Result.bOccupied = false;
+
+	const FPNHUDEquipmentData& CurrentEquipmentData = GetHUDData().Equipment;
+
+	const TArray<FPNHUDInternalEquipmentSlotData>* SourceSlots = nullptr;
+
+	switch (InternalContainer)
+	{
+	case EPNEquipmentInternalContainer::Helmet:
+		SourceSlots = &CurrentEquipmentData.HelmetInternalSlots;
+		break;
+
+	case EPNEquipmentInternalContainer::Armor:
+		SourceSlots = &CurrentEquipmentData.ArmorInternalSlots;
+		break;
+
+	default:
+		return Result;
+	}
+
+	for (const FPNHUDInternalEquipmentSlotData& SlotData : *SourceSlots)
+	{
+		if (SlotData.Container == InternalContainer && SlotData.SlotIndex == InternalSlotIndex)
+		{
+			return SlotData;
+		}
+	}
+
+	return Result;
+}
+
+FText UPNInventoryHUDWidget::GetWeaponSlotLabel(EPNEquipmentSlot EquipmentSlot) const
+{
+	switch (EquipmentSlot)
+	{
+	case EPNEquipmentSlot::PrimaryWeapon1:
+		return FText::FromString(TEXT("1"));
+
+	case EPNEquipmentSlot::PrimaryWeapon2:
+		return FText::FromString(TEXT("2"));
+
+	case EPNEquipmentSlot::Sidearm:
+		return FText::FromString(TEXT("3"));
+
+	case EPNEquipmentSlot::Knife:
+		return FText::FromString(TEXT("4"));
+
+	default:
+		return FText::GetEmpty();
+	}
+}
+
+bool UPNInventoryHUDWidget::IsWeaponEquipmentSlot(EPNEquipmentSlot EquipmentSlot) const
+{
+	return EquipmentSlot == EPNEquipmentSlot::PrimaryWeapon1
+		|| EquipmentSlot == EPNEquipmentSlot::PrimaryWeapon2
+		|| EquipmentSlot == EPNEquipmentSlot::Sidearm
+		|| EquipmentSlot == EPNEquipmentSlot::Knife;
+}
+
+void UPNInventoryHUDWidget::ApplyEquipmentButtonStyle(
+	UButton* TargetButton,
+	bool bOccupied,
+	bool bHoveredSlot,
+	bool bLocked,
+	bool bInternalSlot,
+	const FVector2D& ImageSize
+) const
+{
+	if (!TargetButton)
+	{
+		return;
+	}
+
+	UTexture2D* NormalTexture = nullptr;
+	UTexture2D* HoveredTexture = nullptr;
+	UTexture2D* PressedTexture = nullptr;
+	UTexture2D* DisabledTexture = nullptr;
+
+	if (bInternalSlot)
+	{
+		if (bLocked)
+		{
+			NormalTexture = EquipmentInternalSlotLockedTexture.LoadSynchronous();
+			HoveredTexture = NormalTexture;
+			PressedTexture = NormalTexture;
+			DisabledTexture = NormalTexture;
+		}
+		else
+		{
+			NormalTexture = EquipmentInternalSlotBackgroundTexture.LoadSynchronous();
+			HoveredTexture = EquipmentInternalSlotHoverTexture.LoadSynchronous();
+			PressedTexture = NormalTexture;
+			DisabledTexture = NormalTexture;
+		}
+	}
+	else
+	{
+		NormalTexture = EquipmentSlotBackgroundTexture.LoadSynchronous();
+		HoveredTexture = EquipmentSlotHoverTexture.LoadSynchronous();
+		PressedTexture = NormalTexture;
+		DisabledTexture = NormalTexture;
+	}
+
+	if (!HoveredTexture)
+	{
+		HoveredTexture = NormalTexture;
+	}
+
+	FButtonStyle ButtonStyle;
+	ButtonStyle.SetNormal(PNMakeEquipmentTextureBrush(NormalTexture, ImageSize));
+	ButtonStyle.SetHovered(PNMakeEquipmentTextureBrush(HoveredTexture, ImageSize));
+	ButtonStyle.SetPressed(PNMakeEquipmentTextureBrush(PressedTexture, ImageSize));
+	ButtonStyle.SetDisabled(PNMakeEquipmentTextureBrush(DisabledTexture, ImageSize));
+
+	ButtonStyle.SetNormalPadding(FMargin(0.0f));
+	ButtonStyle.SetPressedPadding(FMargin(0.0f));
+
+	TargetButton->SetStyle(ButtonStyle);
+	TargetButton->SetColorAndOpacity(FLinearColor::White);
+	TargetButton->SetBackgroundColor(FLinearColor::White);
+}
+
+void UPNInventoryHUDWidget::ApplyTextureToEquipmentImage(
+	UImage* TargetImage,
+	UTexture2D* Texture,
+	const FVector2D& ImageSize
+) const
+{
+	if (!TargetImage)
+	{
+		return;
+	}
+
+	if (!Texture)
+	{
+		TargetImage->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	FSlateBrush Brush;
+	Brush.SetResourceObject(Texture);
+	Brush.SetImageSize(ImageSize);
+	Brush.DrawAs = ESlateBrushDrawType::Image;
+	Brush.TintColor = FSlateColor(FLinearColor::White);
+
+	TargetImage->SetBrush(Brush);
+	TargetImage->SetColorAndOpacity(FLinearColor::White);
+	TargetImage->SetVisibility(ESlateVisibility::Visible);
 }
