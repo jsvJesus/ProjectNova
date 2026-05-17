@@ -135,6 +135,18 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Inventory")
 	bool FindFreePositionForItem(UPNItemInstance* ItemInstance, bool bAutoRotate, FPNInventoryGridPosition& OutPosition, bool& bOutRotated) const;
+	
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Player Capacity")
+    bool SetPlayerInventoryCapacity(int32 BaseSlotCount, int32 BackpackExtraSlots, int32 Columns, float NewMaxWeight, int32 MaxVisualSlotCount);
+    
+    UFUNCTION(BlueprintPure, Category = "Inventory|Player Capacity")
+    EPNInventoryOperationResult CheckCanRemoveBackpackCapacity(UPNItemDataAsset* BackpackData) const;
+    
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Player Capacity")
+    void SetMaxWeightLimit(float NewMaxWeight);
+    
+    UFUNCTION(BlueprintPure, Category = "Inventory|Player Capacity")
+    int32 GetMaxVisualSlotCount() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Quick Slots")
 	void InitializeQuickSlots();
@@ -224,6 +236,9 @@ protected:
 	bool CanFitWeight(UPNItemInstance* ItemInstance, int32 QuantityToAdd) const;
 	bool TryStackItem(UPNItemInstance* SourceItem, int32& InOutRemainingQuantity, FPNInventoryAddItemResult& InOutResult);
 	bool IsAreaFreeInternal(FPNInventoryGridPosition Position, FPNInventoryItemSize Size, const UPNItemInstance* IgnoredItem) const;
+
+	int32 GetGridSlotCapacity() const;
+	bool CanFitItemsIntoSlotCount(int32 NewUnlockedSlotCount, int32 NewColumns) const;
 
 	int32 FindEntryIndexByItem(const UPNItemInstance* ItemInstance) const;
 	int32 FindEntryIndexByPosition(FPNInventoryGridPosition Position) const;

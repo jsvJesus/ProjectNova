@@ -43,12 +43,6 @@ protected:
 	TObjectPtr<UPNInventoryComponent> InventoryComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<UPNInventoryComponent> BackpackInventoryComponent;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<UPNInventoryComponent> VestInventoryComponent;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UPNEquipmentComponent> EquipmentComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
@@ -105,17 +99,17 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_IsDead, BlueprintReadOnly, Category = "State")
 	bool bIsDead = false;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Equipment Inventories", meta = (ClampMin = "1"))
-	int32 DefaultBackpackInventoryColumns = 5;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inventory", meta = (ClampMin = "1"))
+	int32 DefaultInventoryColumns = 8;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Equipment Inventories", meta = (ClampMin = "1"))
-	int32 DefaultVestInventoryColumns = 4;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inventory", meta = (ClampMin = "1"))
+	int32 DefaultBaseInventorySlots = 16;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Equipment Inventories", meta = (ClampMin = "0"))
-	int32 DefaultVestInventorySlots = 8;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inventory", meta = (ClampMin = "0.0"))
+	float DefaultBaseInventoryMaxWeight = 30.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Equipment Inventories", meta = (ClampMin = "0.0"))
-	float DefaultVestInventoryMaxWeight = 10.0f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Inventory", meta = (ClampMin = "1"))
+	int32 DefaultInventoryMaxVisualSlots = 64;
 
 public:
 	UFUNCTION(BlueprintPure, Category = "Inventory")
@@ -215,17 +209,5 @@ protected:
 	UFUNCTION()
 	void HandleEquipmentChanged();
 
-	void ApplyBackpackInventoryFromEquipment();
-	void ApplyVestInventoryFromEquipment();
-
-	void InitializeEquipmentInventory(
-		UPNInventoryComponent* TargetInventory,
-		EPNInventoryType InventoryType,
-		int32 SlotCount,
-		int32 Columns,
-		float MaxWeight,
-		bool bEnabled
-	);
-
-	int32 CalculateRowsFromSlotCount(int32 SlotCount, int32 Columns) const;
+	void ApplyPlayerInventoryCapacityFromEquipment();
 };

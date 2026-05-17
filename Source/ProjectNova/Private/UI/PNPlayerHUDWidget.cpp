@@ -384,8 +384,6 @@ void UPNPlayerHUDWidget::UpdateNativeLayout()
 	UpdateQuickSlotsPanel();
 
 	UpdateInventoryPanel(CachedHUDData.MainInventory, MainInventoryRefs, true);
-	UpdateInventoryPanel(CachedHUDData.BackpackInventory, BackpackInventoryRefs, false);
-	UpdateInventoryPanel(CachedHUDData.VestInventory, VestInventoryRefs, false);
 	UpdateInventoryPanel(CachedHUDData.Container.Inventory, ContainerInventoryRefs, CachedHUDData.Container.bIsOpen);
 }
 

@@ -162,6 +162,18 @@ FPNEquipmentOperationResponse UPNEquipmentComponent::UnequipSlotToInventory(EPNE
 		return Response;
 	}
 
+	if (Slot == EPNEquipmentSlot::Backpack)
+	{
+		UPNItemDataAsset* BackpackData = EquipmentSlots[SlotIndex].InstanceData.ItemData;
+		const EPNInventoryOperationResult CapacityResult = InventoryComponent->CheckCanRemoveBackpackCapacity(BackpackData);
+
+		if (CapacityResult != EPNInventoryOperationResult::Success)
+		{
+			Response.Result = ConvertInventoryAddFail(CapacityResult);
+			return Response;
+		}
+	}
+
 	UPNItemInstance* ItemInstance = NewObject<UPNItemInstance>(this);
 	if (!ItemInstance)
 	{

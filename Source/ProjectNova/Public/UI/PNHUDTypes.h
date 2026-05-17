@@ -13,8 +13,6 @@ enum class EPNHUDInventoryPanel : uint8
 {
 	None            UMETA(DisplayName = "None"),
 	MainInventory   UMETA(DisplayName = "Main Inventory"),
-	Backpack        UMETA(DisplayName = "Backpack"),
-	Vest            UMETA(DisplayName = "Vest"),
 	OpenedContainer UMETA(DisplayName = "Opened Container")
 };
 
@@ -122,6 +120,9 @@ struct PROJECTNOVA_API FPNHUDInventoryPanelData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory")
 	int32 SlotCount = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory")
+	int32 MaxVisualSlotCount = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD|Inventory")
 	bool bUsesWeightLimit = false;
@@ -292,12 +293,6 @@ struct PROJECTNOVA_API FPNPlayerHUDSnapshot
 	bool bHasInventory = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD")
-	bool bHasBackpackInventory = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD")
-	bool bHasVestInventory = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD")
 	bool bHasStats = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD")
@@ -314,12 +309,6 @@ struct PROJECTNOVA_API FPNPlayerHUDSnapshot
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD")
 	FPNHUDInventoryPanelData MainInventory;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD")
-	FPNHUDInventoryPanelData BackpackInventory;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD")
-	FPNHUDInventoryPanelData VestInventory;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD")
 	TArray<FPNHUDQuickSlotData> QuickSlots;

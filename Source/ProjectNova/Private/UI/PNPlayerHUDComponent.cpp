@@ -217,22 +217,10 @@ FPNPlayerHUDSnapshot UPNPlayerHUDComponent::BuildHUDSnapshot() const
 	}
 
 	UPNInventoryComponent* InventoryComponent = OwnerCharacter->GetInventoryComponent();
-	UPNInventoryComponent* BackpackInventoryComponent = OwnerCharacter->GetBackpackInventoryComponent();
-	UPNInventoryComponent* VestInventoryComponent = OwnerCharacter->GetVestInventoryComponent();
 
 	UPNEquipmentComponent* EquipmentComponent = OwnerCharacter->GetEquipmentComponent();
 
-	UPNItemDataAsset* EquippedBackpackData = EquipmentComponent
-		? EquipmentComponent->GetEquippedItemData(EPNEquipmentSlot::Backpack)
-		: nullptr;
-
-	UPNItemDataAsset* EquippedArmorData = EquipmentComponent
-		? EquipmentComponent->GetEquippedItemData(EPNEquipmentSlot::Armor)
-		: nullptr;
-
 	Snapshot.bHasInventory = InventoryComponent != nullptr;
-	Snapshot.bHasBackpackInventory = BackpackInventoryComponent != nullptr;
-	Snapshot.bHasVestInventory = VestInventoryComponent != nullptr;
 	Snapshot.bHasStats = OwnerCharacter->GetCharacterStatsComponent() != nullptr;
 	Snapshot.bHasEquipment = OwnerCharacter->GetEquipmentComponent() != nullptr;
 	Snapshot.bHasQuickSlots = OwnerCharacter->GetQuickSlotComponent() != nullptr;
@@ -244,18 +232,6 @@ FPNPlayerHUDSnapshot UPNPlayerHUDComponent::BuildHUDSnapshot() const
 		InventoryComponent,
 		EPNHUDInventoryPanel::MainInventory,
 		nullptr
-	);
-
-	Snapshot.BackpackInventory = BuildInventoryPanelData(
-		BackpackInventoryComponent,
-		EPNHUDInventoryPanel::Backpack,
-		EquippedBackpackData
-	);
-
-	Snapshot.VestInventory = BuildInventoryPanelData(
-		VestInventoryComponent,
-		EPNHUDInventoryPanel::Vest,
-		EquippedArmorData
 	);
 
 	const int32 SelectedQuickSlotIndex = OwnerCharacter->GetQuickSlotComponent()
@@ -378,14 +354,6 @@ FPNHUDInventoryPanelData UPNPlayerHUDComponent::BuildInventoryPanelData(
 		PanelData.DisplayTitle = FText::FromString(TEXT("Inventory"));
 		break;
 
-	case EPNHUDInventoryPanel::Vest:
-		PanelData.DisplayTitle = FText::FromString(TEXT("Armor"));
-		break;
-
-	case EPNHUDInventoryPanel::Backpack:
-		PanelData.DisplayTitle = FText::FromString(TEXT("Backpack"));
-		break;
-
 	case EPNHUDInventoryPanel::OpenedContainer:
 		PanelData.DisplayTitle = FText::FromString(TEXT("Container"));
 		break;
@@ -415,6 +383,7 @@ FPNHUDInventoryPanelData UPNPlayerHUDComponent::BuildInventoryPanelData(
 	PanelData.Columns = InventoryComponent->GetColumns();
 	PanelData.Rows = InventoryComponent->GetRows();
 	PanelData.SlotCount = InventoryComponent->GetSlotCount();
+	PanelData.MaxVisualSlotCount = InventoryComponent->GetMaxVisualSlotCount();
 
 	PanelData.bUsesWeightLimit = InventoryComponent->UsesWeightLimit();
 	PanelData.bCanReceiveItems = InventoryComponent->CanReceiveItems();
@@ -426,11 +395,6 @@ FPNHUDInventoryPanelData UPNPlayerHUDComponent::BuildInventoryPanelData(
 		PanelData.bCanReceiveItems ||
 		PanelData.bCanRemoveItems ||
 		InventoryComponent->GetInventoryItemCount() > 0;
-
-	if (Panel == EPNHUDInventoryPanel::Backpack || Panel == EPNHUDInventoryPanel::Vest)
-	{
-		PanelData.bIsActive = SourceItemData != nullptr && PanelData.bIsActive;
-	}
 
 	const TArray<FPNRepInventoryItemEntry>& ReplicatedItems = InventoryComponent->GetReplicatedItems();
 

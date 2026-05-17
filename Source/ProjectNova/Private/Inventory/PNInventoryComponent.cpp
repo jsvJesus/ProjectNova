@@ -12,8 +12,8 @@ UPNInventoryComponent::UPNInventoryComponent()
 	SetIsReplicatedByDefault(true);
 
 	Settings.InventoryType = EPNInventoryType::Inventory;
-	Settings.GridSize.Columns = 5;
-	Settings.GridSize.Rows = 5;
+	Settings.GridSize.Columns = 8;
+	Settings.GridSize.Rows = 2;
 	Settings.bUseWeightLimit = true;
 	Settings.MaxWeight = 30.0f;
 	Settings.bAllowItemRotation = true;
@@ -1962,4 +1962,137 @@ void UPNInventoryComponent::ClearQuickSlotDataInternal(int32 SlotIndex)
 	}
 
 	QuickSlots[SlotArrayIndex].InstanceData = FPNRepItemInstanceData();
+}
+
+bool UPNInventoryComponent::SetPlayerInventoryCapacity(int32 BaseSlotCount, int32 BackpackExtraSlots, int32 Columns, float NewMaxWeight, int32 MaxVisualSlotCount)
+{
+	if (!HasInventoryAuthority())
+	{
+		return false;
+	}
+
+	const int32 SafeBaseSlots = FMath::Max(1, BaseSlotCount);
+	const int32 SafeExtraSlots = FMath::Max(0, BackpackExtraSlots);
+	const int32 SafeColumns = FMath::Max(1, Columns);
+	const int32 NewUnlockedSlots = SafeBaseSlots + SafeExtraSlots;
+	const int32 NewRows = FMath::Max(1, FMath::CeilToInt(static_cast<float>(NewUnlockedSlots) / static_cast<float>(SafeColumns)));
+	const float SafeMaxWeight = FMath::Max(0.0f, NewMaxWeight);
+
+	if (!CanFitItemsIntoSlotCount(NewUnlockedSlots, SafeColumns))
+	{
+		return false;
+	}
+
+	if (Settings.bUseWeightLimit && GetCurrentWeight() > SafeMaxWeight)
+	{
+		return false;
+	}
+
+	Settings.InventoryType = EPNInventoryType::Inventory;
+	Settings.GridSize.Columns = SafeColumns;
+	Settings.GridSize.Rows = NewRows;
+	Settings.MaxWeight = SafeMaxWeight;
+
+	// Используем эти поля как C++ runtime-настройки.
+	// Если хочешь видеть их в Details, добавь их в FPNInventorySettings как UPROPERTY.
+	Settings.GridSize.Columns = SafeColumns;
+	Settings.GridSize.Rows = NewRows;
+
+	RebuildSlots();
+	BroadcastInventoryChanged();
+
+	return true;
+}
+
+EPNInventoryOperationResult UPNInventoryComponent::CheckCanRemoveBackpackCapacity(UPNItemDataAsset* BackpackData) const
+{
+	if (!BackpackData || BackpackData->ItemType != EPNItemType::IT_Backpack)
+	{
+		return EPNInventoryOperationResult::Success;
+	}
+
+	const int32 BaseSlots = 16;
+	const int32 Columns = 8;
+	const int32 BackpackSlots = FMath::Max(0, BackpackData->BackpackStats.MaxSlots);
+	const float BackpackWeight = FMath::Max(0.0f, BackpackData->BackpackStats.MaxWeight);
+
+	const int32 CurrentUnlockedSlots = GetSlotCount();
+	const int32 TargetUnlockedSlots = FMath::Max(BaseSlots, CurrentUnlockedSlots - BackpackSlots);
+
+	if (!CanFitItemsIntoSlotCount(TargetUnlockedSlots, Columns))
+	{
+		return EPNInventoryOperationResult::NoSpace;
+	}
+
+	const float TargetMaxWeight = FMath::Max(0.0f, GetMaxWeight() - BackpackWeight);
+
+	if (Settings.bUseWeightLimit && GetCurrentWeight() > TargetMaxWeight)
+	{
+		return EPNInventoryOperationResult::OverWeight;
+	}
+
+	return EPNInventoryOperationResult::Success;
+}
+
+void UPNInventoryComponent::SetMaxWeightLimit(float NewMaxWeight)
+{
+	if (!HasInventoryAuthority())
+	{
+		return;
+	}
+
+	Settings.MaxWeight = FMath::Max(0.0f, NewMaxWeight);
+
+	BroadcastInventoryChanged();
+}
+
+int32 UPNInventoryComponent::GetMaxVisualSlotCount() const
+{
+	// Пока дефолт 64, чтобы UI мог показывать заблокированные слоты под будущий рюкзак.
+	// Потом можно вынести в Settings.
+	return FMath::Max(GetSlotCount(), 64);
+}
+
+int32 UPNInventoryComponent::GetGridSlotCapacity() const
+{
+	return GetColumns() * GetRows();
+}
+
+bool UPNInventoryComponent::CanFitItemsIntoSlotCount(int32 NewUnlockedSlotCount, int32 NewColumns) const
+{
+	const int32 SafeUnlockedSlots = FMath::Max(1, NewUnlockedSlotCount);
+	const int32 SafeColumns = FMath::Max(1, NewColumns);
+
+	for (const FPNInventoryItemEntry& Entry : Items)
+	{
+		if (!Entry.ItemInstance)
+		{
+			continue;
+		}
+
+		const int32 Width = FMath::Max(1, Entry.Size.GetFinalWidth());
+		const int32 Height = FMath::Max(1, Entry.Size.GetFinalHeight());
+
+		for (int32 LocalY = 0; LocalY < Height; ++LocalY)
+		{
+			for (int32 LocalX = 0; LocalX < Width; ++LocalX)
+			{
+				const int32 CellX = Entry.Position.X + LocalX;
+				const int32 CellY = Entry.Position.Y + LocalY;
+
+				if (CellX < 0 || CellY < 0 || CellX >= SafeColumns)
+				{
+					return false;
+				}
+
+				const int32 LinearIndex = CellY * SafeColumns + CellX;
+				if (LinearIndex < 0 || LinearIndex >= SafeUnlockedSlots)
+				{
+					return false;
+				}
+			}
+		}
+	}
+
+	return true;
 }

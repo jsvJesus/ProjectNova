@@ -28,18 +28,6 @@ APNBaseCharacter::APNBaseCharacter()
 
 	PlayerHUDComponent = CreateDefaultSubobject<UPNPlayerHUDComponent>(TEXT("PlayerHUDComponent"));
 
-	BackpackInventoryComponent = CreateDefaultSubobject<UPNInventoryComponent>(TEXT("BackpackInventoryComponent"));
-	if (BackpackInventoryComponent)
-	{
-		BackpackInventoryComponent->SetIsReplicated(true);
-	}
-
-	VestInventoryComponent = CreateDefaultSubobject<UPNInventoryComponent>(TEXT("VestInventoryComponent"));
-	if (VestInventoryComponent)
-	{
-		VestInventoryComponent->SetIsReplicated(true);
-	}
-
 	EquipmentComponent = CreateDefaultSubobject<UPNEquipmentComponent>(TEXT("EquipmentComponent"));
 	if (EquipmentComponent)
 	{
@@ -193,28 +181,22 @@ UPNPlayerHUDComponent* APNBaseCharacter::GetPlayerHUDComponent() const
 
 UPNInventoryComponent* APNBaseCharacter::GetBackpackInventoryComponent() const
 {
-	return BackpackInventoryComponent;
+	return nullptr;
 }
 
 UPNInventoryComponent* APNBaseCharacter::GetVestInventoryComponent() const
 {
-	return VestInventoryComponent;
+	return nullptr;
 }
 
 bool APNBaseCharacter::HasActiveBackpackInventory() const
 {
-	return BackpackInventoryComponent
-		&& BackpackInventoryComponent->CanReceiveItems()
-		&& BackpackInventoryComponent->CanRemoveItems()
-		&& BackpackInventoryComponent->GetSlotCount() > 1;
+	return false;
 }
 
 bool APNBaseCharacter::HasActiveVestInventory() const
 {
-	return VestInventoryComponent
-		&& VestInventoryComponent->CanReceiveItems()
-		&& VestInventoryComponent->CanRemoveItems()
-		&& VestInventoryComponent->GetSlotCount() > 1;
+	return false;
 }
 
 void APNBaseCharacter::RefreshEquipmentInventories()
@@ -224,8 +206,7 @@ void APNBaseCharacter::RefreshEquipmentInventories()
 		return;
 	}
 
-	ApplyBackpackInventoryFromEquipment();
-	ApplyVestInventoryFromEquipment();
+	ApplyPlayerInventoryCapacityFromEquipment();
 }
 
 void APNBaseCharacter::HandleEquipmentChanged()
@@ -238,9 +219,9 @@ void APNBaseCharacter::HandleEquipmentChanged()
 	RefreshEquipmentInventories();
 }
 
-void APNBaseCharacter::ApplyBackpackInventoryFromEquipment()
+void APNBaseCharacter::ApplyPlayerInventoryCapacityFromEquipment()
 {
-	if (!BackpackInventoryComponent)
+	if (!InventoryComponent)
 	{
 		return;
 	}
@@ -249,175 +230,28 @@ void APNBaseCharacter::ApplyBackpackInventoryFromEquipment()
 		? EquipmentComponent->GetEquippedItemData(EPNEquipmentSlot::Backpack)
 		: nullptr;
 
-	if (!BackpackData)
+	const int32 BackpackExtraSlots = BackpackData
+		? FMath::Max(0, BackpackData->BackpackStats.MaxSlots)
+		: 0;
+
+	float NewMaxWeight = DefaultBaseInventoryMaxWeight;
+
+	if (CharacterStatsComponent)
 	{
-		if (BackpackInventoryComponent->GetInventoryItemCount() > 0)
-		{
-			return;
-		}
-
-		InitializeEquipmentInventory(
-			BackpackInventoryComponent,
-			EPNInventoryType::Backpack,
-			1,
-			1,
-			0.0f,
-			false
-		);
-
-		return;
+		NewMaxWeight = CharacterStatsComponent->GetMaxWeight();
+	}
+	else if (BackpackData)
+	{
+		NewMaxWeight += FMath::Max(0.0f, BackpackData->BackpackStats.MaxWeight);
 	}
 
-	const int32 SlotCount = FMath::Max(0, BackpackData->BackpackStats.MaxSlots);
-	const float MaxWeight = FMath::Max(0.0f, BackpackData->BackpackStats.MaxWeight);
-
-	if (SlotCount <= 0)
-	{
-		if (BackpackInventoryComponent->GetInventoryItemCount() > 0)
-		{
-			return;
-		}
-
-		InitializeEquipmentInventory(
-			BackpackInventoryComponent,
-			EPNInventoryType::Backpack,
-			1,
-			1,
-			0.0f,
-			false
-		);
-
-		return;
-	}
-
-	InitializeEquipmentInventory(
-		BackpackInventoryComponent,
-		EPNInventoryType::Backpack,
-		SlotCount,
-		DefaultBackpackInventoryColumns,
-		MaxWeight,
-		true
+	InventoryComponent->SetPlayerInventoryCapacity(
+		DefaultBaseInventorySlots,
+		BackpackExtraSlots,
+		DefaultInventoryColumns,
+		NewMaxWeight,
+		DefaultInventoryMaxVisualSlots
 	);
-}
-
-void APNBaseCharacter::ApplyVestInventoryFromEquipment()
-{
-	if (!VestInventoryComponent)
-	{
-		return;
-	}
-
-	UPNItemDataAsset* ArmorData = EquipmentComponent
-		? EquipmentComponent->GetEquippedItemData(EPNEquipmentSlot::Armor)
-		: nullptr;
-
-	if (!ArmorData)
-	{
-		if (VestInventoryComponent->GetInventoryItemCount() > 0)
-		{
-			return;
-		}
-
-		InitializeEquipmentInventory(
-			VestInventoryComponent,
-			EPNInventoryType::Vest,
-			1,
-			1,
-			0.0f,
-			false
-		);
-
-		return;
-	}
-
-	const int32 ArmorUnlockedSlots = ArmorData->ArmorStats.Slots.DefaultUnlockedSlots > 0
-		? ArmorData->ArmorStats.Slots.DefaultUnlockedSlots
-		: ArmorData->ArmorStats.Slots.MaxSlots;
-
-	const int32 SlotCount = FMath::Max(0, ArmorUnlockedSlots);
-
-	if (SlotCount <= 0)
-	{
-		if (VestInventoryComponent->GetInventoryItemCount() > 0)
-		{
-			return;
-		}
-
-		InitializeEquipmentInventory(
-			VestInventoryComponent,
-			EPNInventoryType::Vest,
-			1,
-			1,
-			0.0f,
-			false
-		);
-
-		return;
-	}
-
-	InitializeEquipmentInventory(
-		VestInventoryComponent,
-		EPNInventoryType::Vest,
-		SlotCount,
-		DefaultVestInventoryColumns,
-		DefaultVestInventoryMaxWeight,
-		true
-	);
-}
-
-void APNBaseCharacter::InitializeEquipmentInventory(
-	UPNInventoryComponent* TargetInventory,
-	EPNInventoryType InventoryType,
-	int32 SlotCount,
-	int32 Columns,
-	float MaxWeight,
-	bool bEnabled
-)
-{
-	if (!TargetInventory)
-	{
-		return;
-	}
-
-	const int32 SafeSlotCount = FMath::Max(1, SlotCount);
-	const int32 PreferredColumns = FMath::Clamp(Columns, 1, SafeSlotCount);
-
-	int32 ExactColumns = PreferredColumns;
-
-	for (int32 CandidateColumns = PreferredColumns; CandidateColumns >= 1; --CandidateColumns)
-	{
-		if (SafeSlotCount % CandidateColumns == 0)
-		{
-			ExactColumns = CandidateColumns;
-			break;
-		}
-	}
-
-	FPNInventorySettings NewSettings;
-	NewSettings.InventoryType = InventoryType;
-	NewSettings.GridSize.Columns = ExactColumns;
-	NewSettings.GridSize.Rows = SafeSlotCount / ExactColumns;
-
-	NewSettings.bUseWeightLimit = MaxWeight > 0.0f;
-	NewSettings.MaxWeight = FMath::Max(0.0f, MaxWeight);
-
-	NewSettings.bAllowItemRotation = true;
-	NewSettings.bAllowStacking = true;
-
-	NewSettings.bCanReceiveItems = bEnabled;
-	NewSettings.bCanRemoveItems = bEnabled;
-	NewSettings.bCanDropItems = bEnabled;
-	NewSettings.bCanTradeItems = false;
-
-	TargetInventory->InitializeInventory(NewSettings);
-}
-
-int32 APNBaseCharacter::CalculateRowsFromSlotCount(int32 SlotCount, int32 Columns) const
-{
-	const int32 SafeSlotCount = FMath::Max(1, SlotCount);
-	const int32 SafeColumns = FMath::Max(1, Columns);
-
-	return FMath::Max(1, FMath::CeilToInt(static_cast<float>(SafeSlotCount) / static_cast<float>(SafeColumns)));
 }
 
 UPNInventoryActionComponent* APNBaseCharacter::GetInventoryActionComponent() const

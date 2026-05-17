@@ -145,18 +145,6 @@ void UPNInventoryHUDWidget::PushHUDDataToLayouts()
 		InventoryLayout->SetInventoryData(HUDData.MainInventory);
 	}
 
-	if (VestInventoryLayout)
-	{
-		VestInventoryLayout->SetHUDData(HUDData);
-		VestInventoryLayout->SetInventoryData(HUDData.VestInventory);
-	}
-
-	if (BackpackInventoryLayout)
-	{
-		BackpackInventoryLayout->SetHUDData(HUDData);
-		BackpackInventoryLayout->SetInventoryData(HUDData.BackpackInventory);
-	}
-
 	if (EquipmentLayout)
 	{
 		EquipmentLayout->SetHUDData(HUDData);
@@ -191,20 +179,7 @@ void UPNInventoryHUDWidget::PushHUDDataToLayouts()
 
 void UPNInventoryHUDWidget::ApplySharedInventoryGridStyle()
 {
-	if (!InventoryLayout)
-	{
-		return;
-	}
-
-	if (VestInventoryLayout)
-	{
-		VestInventoryLayout->CopyVisualStyleFrom(InventoryLayout);
-	}
-
-	if (BackpackInventoryLayout)
-	{
-		BackpackInventoryLayout->CopyVisualStyleFrom(InventoryLayout);
-	}
+	// Один общий InventoryGrid. Ничего копировать больше не нужно.
 }
 
 void UPNInventoryHUDWidget::PushPlayerInfoToLayout()
@@ -230,8 +205,6 @@ void UPNInventoryHUDWidget::ApplyPageVisibility()
 	SetLayoutVisible(NavigationLayout, bRootVisible);
 
 	SetLayoutVisible(InventoryLayout, bInventoryPageVisible && HUDData.MainInventory.bIsActive);
-	SetLayoutVisible(VestInventoryLayout, bInventoryPageVisible && HUDData.VestInventory.bIsActive);
-	SetLayoutVisible(BackpackInventoryLayout, bInventoryPageVisible && HUDData.BackpackInventory.bIsActive);
 	SetLayoutVisible(EquipmentLayout, bInventoryPageVisible);
 	SetLayoutVisible(ContainerLayout, bInventoryPageVisible);
 	SetLayoutVisible(QuickSlotLayout, bInventoryPageVisible);
