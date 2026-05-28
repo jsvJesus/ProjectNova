@@ -1598,7 +1598,8 @@ bool UPNInventoryActionComponent::FindBestEquipmentSlotForItemData(UPNItemDataAs
 		return false;
 	}
 
-	if (ItemData->ItemCategory == EPNItemCategory::Melee)
+	if (ItemData->WeaponStats.AnimType == EPNAnimType::Knife
+	|| ItemData->ItemCategory == EPNItemCategory::Melee)
 	{
 		if (IsSlotFree(EPNEquipmentSlot::Knife))
 		{
@@ -1610,9 +1611,12 @@ bool UPNInventoryActionComponent::FindBestEquipmentSlotForItemData(UPNItemDataAs
 	}
 
 	if (ItemData->ItemCategory == EPNItemCategory::HG_Single
-		|| ItemData->ItemCategory == EPNItemCategory::HG_Knife
-		|| ItemData->ItemCategory == EPNItemCategory::HG_Shield
-		|| ItemData->ItemCategory == EPNItemCategory::HG_Items)
+	|| ItemData->ItemCategory == EPNItemCategory::HG_Knife
+	|| ItemData->ItemCategory == EPNItemCategory::HG_Shield
+	|| ItemData->ItemCategory == EPNItemCategory::HG_Items
+	|| ItemData->WeaponStats.AnimType == EPNAnimType::Pistol_Single
+	|| ItemData->WeaponStats.AnimType == EPNAnimType::Pistol_Knife
+	|| ItemData->WeaponStats.AnimType == EPNAnimType::Pistol_Shield)
 	{
 		if (IsSlotFree(EPNEquipmentSlot::Sidearm))
 		{

@@ -462,10 +462,26 @@ EPNAnimType APNPlayerCharacter::ResolveFirstPersonAnimTypeFromEquipment() const
 		return EPNAnimType::Unarmed;
 	}
 
-	UPNItemDataAsset* KnifeData = PNEquipmentComponent->GetEquippedItemData(EPNEquipmentSlot::Knife);
-	if (KnifeData && KnifeData->ItemType == EPNItemType::IT_Weapon && KnifeData->ItemCategory == EPNItemCategory::Melee)
+	const TArray<EPNEquipmentSlot> WeaponSlots =
 	{
-		return EPNAnimType::Knife;
+		EPNEquipmentSlot::PrimaryWeapon1,
+		EPNEquipmentSlot::PrimaryWeapon2,
+		EPNEquipmentSlot::Sidearm,
+		EPNEquipmentSlot::Knife
+	};
+
+	for (const EPNEquipmentSlot WeaponSlot : WeaponSlots)
+	{
+		UPNItemDataAsset* WeaponData = PNEquipmentComponent->GetEquippedItemData(WeaponSlot);
+		if (!WeaponData || WeaponData->ItemType != EPNItemType::IT_Weapon)
+		{
+			continue;
+		}
+
+		if (WeaponData->WeaponStats.AnimType != EPNAnimType::None)
+		{
+			return WeaponData->WeaponStats.AnimType;
+		}
 	}
 
 	return EPNAnimType::Unarmed;

@@ -851,16 +851,38 @@ bool UPNEquipmentComponent::CanEquipItemToSlot(UPNItemInstance* ItemInstance, EP
 
 	case EPNEquipmentSlot::PrimaryWeapon1:
 	case EPNEquipmentSlot::PrimaryWeapon2:
-		return ItemData->ItemType == EPNItemType::IT_Weapon
-			&& IsPrimaryWeaponCategory(ItemData->ItemCategory);
+		if (ItemData->ItemType != EPNItemType::IT_Weapon)
+		{
+			return false;
+		}
+
+		return IsPrimaryWeaponCategory(ItemData->ItemCategory)
+			|| ItemData->WeaponStats.AnimType == EPNAnimType::Rifle_1
+			|| ItemData->WeaponStats.AnimType == EPNAnimType::Rifle_2
+			|| ItemData->WeaponStats.AnimType == EPNAnimType::Shotgun
+			|| ItemData->WeaponStats.AnimType == EPNAnimType::Sniper
+			|| ItemData->WeaponStats.AnimType == EPNAnimType::RPG
+			|| ItemData->WeaponStats.AnimType == EPNAnimType::Gun;
 
 	case EPNEquipmentSlot::Sidearm:
-		return ItemData->ItemType == EPNItemType::IT_Weapon
-			&& IsSidearmCategory(ItemData->ItemCategory);
+		if (ItemData->ItemType != EPNItemType::IT_Weapon)
+		{
+			return false;
+		}
+
+		return IsSidearmCategory(ItemData->ItemCategory)
+			|| ItemData->WeaponStats.AnimType == EPNAnimType::Pistol_Single
+			|| ItemData->WeaponStats.AnimType == EPNAnimType::Pistol_Knife
+			|| ItemData->WeaponStats.AnimType == EPNAnimType::Pistol_Shield;
 
 	case EPNEquipmentSlot::Knife:
-		return ItemData->ItemType == EPNItemType::IT_Weapon
-			&& ItemData->ItemCategory == EPNItemCategory::Melee;
+		if (ItemData->ItemType != EPNItemType::IT_Weapon)
+		{
+			return false;
+		}
+
+		return ItemData->ItemCategory == EPNItemCategory::Melee
+			|| ItemData->WeaponStats.AnimType == EPNAnimType::Knife;
 
 	default:
 		return false;

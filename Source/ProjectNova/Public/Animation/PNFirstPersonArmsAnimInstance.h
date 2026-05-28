@@ -76,11 +76,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Anim")
 	bool IsDead() const;
 
-	UFUNCTION(BlueprintPure, Category = "Anim")
-	EPNAnimType GetCurrentAnimType() const;
-
 	UFUNCTION(BlueprintPure, Category = "Anim", meta = (BlueprintThreadSafe))
-	bool IsKnifeAnim() const;
+	EPNAnimType GetCurrentAnimType() const;
 
 protected:
 	void RefreshCachedCharacter();

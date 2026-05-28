@@ -103,11 +103,6 @@ EPNAnimType UPNFirstPersonArmsAnimInstance::GetCurrentAnimType() const
 	return CurrentAnimType;
 }
 
-bool UPNFirstPersonArmsAnimInstance::IsKnifeAnim() const
-{
-	return CurrentAnimType == EPNAnimType::Knife;
-}
-
 void UPNFirstPersonArmsAnimInstance::RefreshCachedCharacter()
 {
 	CachedPlayerCharacter = Cast<APNPlayerCharacter>(TryGetPawnOwner());
