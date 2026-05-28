@@ -151,7 +151,9 @@ void UPNInventoryGridWidget::ReleaseSlateResources(bool bReleaseChildren)
 	Super::ReleaseSlateResources(bReleaseChildren);
 
 	RootSizeBox = nullptr;
+	GridOverlay = nullptr;
 	SlotGridPanel = nullptr;
+	ItemCanvasPanel = nullptr;
 }
 
 void UPNInventoryGridWidget::NativePreConstruct()
@@ -212,6 +214,13 @@ void UPNInventoryGridWidget::CopyVisualStyleFrom(const UPNInventoryGridWidget* S
 
 	EmptyFallbackColor = SourceWidget->EmptyFallbackColor;
 	BlockedFallbackColor = SourceWidget->BlockedFallbackColor;
+
+	ItemBackgroundTexture = SourceWidget->ItemBackgroundTexture;
+	ItemBackgroundFallbackColor = SourceWidget->ItemBackgroundFallbackColor;
+	ItemIconTintColor = SourceWidget->ItemIconTintColor;
+	ItemQuantityTextColor = SourceWidget->ItemQuantityTextColor;
+	ItemIconPaddingPercent = SourceWidget->ItemIconPaddingPercent;
+	ItemQuantityFontSize = SourceWidget->ItemQuantityFontSize;
 
 	if (bBuildNativeGrid)
 	{
@@ -370,8 +379,24 @@ void UPNInventoryGridWidget::BuildNativeGridRoot()
 		RootSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
 		WidgetTree->RootWidget = RootSizeBox;
 
+		GridOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		RootSizeBox->AddChild(GridOverlay);
+
 		SlotGridPanel = WidgetTree->ConstructWidget<UUniformGridPanel>(UUniformGridPanel::StaticClass());
-		RootSizeBox->AddChild(SlotGridPanel);
+
+		if (UOverlaySlot* SlotGridOverlaySlot = GridOverlay->AddChildToOverlay(SlotGridPanel))
+		{
+			SlotGridOverlaySlot->SetHorizontalAlignment(HAlign_Fill);
+			SlotGridOverlaySlot->SetVerticalAlignment(VAlign_Fill);
+		}
+
+		ItemCanvasPanel = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
+
+		if (UOverlaySlot* ItemCanvasOverlaySlot = GridOverlay->AddChildToOverlay(ItemCanvasPanel))
+		{
+			ItemCanvasOverlaySlot->SetHorizontalAlignment(HAlign_Fill);
+			ItemCanvasOverlaySlot->SetVerticalAlignment(VAlign_Fill);
+		}
 	}
 
 	RootSizeBox->SetWidthOverride(GridSize.X);
@@ -412,6 +437,150 @@ void UPNInventoryGridWidget::RebuildNativeSlots()
 			UniformSlot->SetVerticalAlignment(VAlign_Fill);
 		}
 	}
+
+	RebuildNativeItems();
+}
+
+void UPNInventoryGridWidget::RebuildNativeItems()
+{
+	if (!WidgetTree || !ItemCanvasPanel)
+	{
+		return;
+	}
+
+	ItemCanvasPanel->ClearChildren();
+
+	for (const FPNHUDInventoryItemData& HUDItem : InventoryData.Items)
+	{
+		AddNativeInventoryItem(HUDItem);
+	}
+}
+
+void UPNInventoryGridWidget::AddNativeInventoryItem(const FPNHUDInventoryItemData& ItemData)
+{
+	if (!WidgetTree || !ItemCanvasPanel)
+	{
+		return;
+	}
+
+	if (!ItemData.Item.bValid || !ItemData.Item.ItemData)
+	{
+		return;
+	}
+
+	const int32 ItemWidthSlots = FMath::Max(1, ItemData.Size.GetFinalWidth());
+	const int32 ItemHeightSlots = FMath::Max(1, ItemData.Size.GetFinalHeight());
+
+	const FVector2D ItemPixelPosition(
+		static_cast<float>(ItemData.Position.X) * SlotSize,
+		static_cast<float>(ItemData.Position.Y) * SlotSize
+	);
+
+	const FVector2D ItemPixelSize(
+		static_cast<float>(ItemWidthSlots) * SlotSize,
+		static_cast<float>(ItemHeightSlots) * SlotSize
+	);
+
+	UOverlay* ItemOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+	ItemOverlay->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+
+	UBorder* ItemBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	ItemBackground->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+	ApplyInventoryItemBackground(ItemBackground, ItemPixelSize);
+
+	if (UOverlaySlot* BackgroundSlot = ItemOverlay->AddChildToOverlay(ItemBackground))
+	{
+		BackgroundSlot->SetHorizontalAlignment(HAlign_Fill);
+		BackgroundSlot->SetVerticalAlignment(VAlign_Fill);
+	}
+
+	UImage* ItemIcon = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+	ItemIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+	const float SlotPadding = FMath::Clamp(ItemIconPaddingPercent, 0.0f, 0.45f);
+	const FVector2D IconSize(
+		FMath::Max(1.0f, ItemPixelSize.X * (1.0f - SlotPadding * 2.0f)),
+		FMath::Max(1.0f, ItemPixelSize.Y * (1.0f - SlotPadding * 2.0f))
+	);
+
+	ApplyInventoryItemIcon(ItemIcon, ItemData.Item, IconSize);
+
+	if (UOverlaySlot* IconSlot = ItemOverlay->AddChildToOverlay(ItemIcon))
+	{
+		IconSlot->SetHorizontalAlignment(HAlign_Center);
+		IconSlot->SetVerticalAlignment(VAlign_Center);
+	}
+
+	if (ItemData.Item.Quantity > 1)
+	{
+		UTextBlock* QuantityText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		QuantityText->SetText(FText::FromString(FString::Printf(TEXT("x%d"), ItemData.Item.Quantity)));
+		QuantityText->SetColorAndOpacity(FSlateColor(ItemQuantityTextColor));
+		QuantityText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Bold"), ItemQuantityFontSize));
+		QuantityText->SetJustification(ETextJustify::Right);
+		QuantityText->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+		if (UOverlaySlot* QuantitySlot = ItemOverlay->AddChildToOverlay(QuantityText))
+		{
+			QuantitySlot->SetHorizontalAlignment(HAlign_Right);
+			QuantitySlot->SetVerticalAlignment(VAlign_Bottom);
+			QuantitySlot->SetPadding(FMargin(0.0f, 0.0f, 5.0f, 3.0f));
+		}
+	}
+
+	ItemCanvasPanel->AddChild(ItemOverlay);
+
+	if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(ItemOverlay->Slot))
+	{
+		CanvasSlot->SetPosition(ItemPixelPosition);
+		CanvasSlot->SetSize(ItemPixelSize);
+		CanvasSlot->SetZOrder(10);
+	}
+}
+
+void UPNInventoryGridWidget::ApplyInventoryItemBackground(UBorder* TargetBorder, const FVector2D& ImageSize) const
+{
+	if (!TargetBorder)
+	{
+		return;
+	}
+
+	UTexture2D* BackgroundTexture = ItemBackgroundTexture.LoadSynchronous();
+
+	const FSlateBrush BackgroundBrush = BackgroundTexture
+		? PNMakeTextureBrush(BackgroundTexture, ImageSize)
+		: PNMakeColorBrush(ItemBackgroundFallbackColor, ImageSize);
+
+	TargetBorder->SetBrush(BackgroundBrush);
+}
+
+void UPNInventoryGridWidget::ApplyInventoryItemIcon(UImage* TargetImage, const FPNHUDItemViewData& ItemViewData, const FVector2D& ImageSize) const
+{
+	if (!TargetImage)
+	{
+		return;
+	}
+
+	if (!ItemViewData.bValid || !ItemViewData.ItemData || ItemViewData.ItemData->Visual.Icon.IsNull())
+	{
+		TargetImage->SetVisibility(ESlateVisibility::Hidden);
+		return;
+	}
+
+	UTexture2D* IconTexture = ItemViewData.ItemData->Visual.Icon.LoadSynchronous();
+	if (!IconTexture)
+	{
+		TargetImage->SetVisibility(ESlateVisibility::Hidden);
+		return;
+	}
+
+	FSlateBrush IconBrush = PNMakeTextureBrush(IconTexture, ImageSize);
+	IconBrush.TintColor = FSlateColor(ItemIconTintColor);
+
+	TargetImage->SetBrush(IconBrush);
+	TargetImage->SetDesiredSizeOverride(ImageSize);
+	TargetImage->SetVisibility(ESlateVisibility::HitTestInvisible);
 }
 
 void UPNInventoryGridWidget::ApplySlotButtonStyle(UButton* TargetButton, EPNInventorySlotVisualState SlotState, const FVector2D& ImageSize) const

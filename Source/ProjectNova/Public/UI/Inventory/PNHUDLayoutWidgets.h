@@ -248,6 +248,24 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Colors")
 	FLinearColor BlockedFallbackColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.85f);
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Item Textures")
+	TSoftObjectPtr<UTexture2D> ItemBackgroundTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Item Colors")
+	FLinearColor ItemBackgroundFallbackColor = FLinearColor(0.08f, 0.09f, 0.10f, 0.96f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Item Colors")
+	FLinearColor ItemIconTintColor = FLinearColor::White;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Item Colors")
+	FLinearColor ItemQuantityTextColor = FLinearColor(0.92f, 0.95f, 0.96f, 1.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Item", meta = (ClampMin = "0.0", ClampMax = "0.45"))
+	float ItemIconPaddingPercent = 0.12f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Item", meta = (ClampMin = "1"))
+	int32 ItemQuantityFontSize = 14;
+
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Style")
 	void CopyVisualStyleFrom(const UPNInventoryGridWidget* SourceWidget);
 
@@ -256,7 +274,13 @@ protected:
 	TObjectPtr<USizeBox> RootSizeBox = nullptr;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UOverlay> GridOverlay = nullptr;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UUniformGridPanel> SlotGridPanel = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCanvasPanel> ItemCanvasPanel = nullptr;
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
@@ -305,8 +329,13 @@ protected:
 	void BuildPreviewInventoryData();
 	void BuildNativeGridRoot();
 	void RebuildNativeSlots();
+	void RebuildNativeItems();
+	void AddNativeInventoryItem(const FPNHUDInventoryItemData& ItemData);
 
 	void ApplySlotButtonStyle(UButton* TargetButton, EPNInventorySlotVisualState SlotState, const FVector2D& ImageSize) const;
+	void ApplyInventoryItemBackground(UBorder* TargetBorder, const FVector2D& ImageSize) const;
+	void ApplyInventoryItemIcon(UImage* TargetImage, const FPNHUDItemViewData& ItemViewData, const FVector2D& ImageSize) const;
+
 	EPNInventorySlotVisualState GetSlotVisualState(const FPNHUDInventoryGridSlotData& SlotData) const;
 };
 
