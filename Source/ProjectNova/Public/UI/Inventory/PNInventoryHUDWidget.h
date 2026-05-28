@@ -12,6 +12,9 @@ class UOverlay;
 class USizeBox;
 class UTextBlock;
 class UTexture2D;
+class UDragDropOperation;
+class UPNInventoryActionComponent;
+class UPNInventoryDragDropOperation;
 
 UCLASS(BlueprintType, Blueprintable)
 class PROJECTNOVA_API UPNInventoryHUDWidget : public UPNPlayerHUDWidget
@@ -24,6 +27,11 @@ public:
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual bool NativeOnDrop(
+	const FGeometry& InGeometry,
+	const FDragDropEvent& InDragDropEvent,
+		UDragDropOperation* InOperation
+	) override;
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectNova|Inventory HUD")
@@ -233,4 +241,8 @@ protected:
 
 	UFUNCTION()
 	void HandleNavigationPageRequested(EPNInventoryHUDPage RequestedPage);
+
+	bool FindEquipmentSlotUnderCursor(const FVector2D& ScreenSpacePosition, EPNEquipmentSlot& OutEquipmentSlot) const;
+	bool TryHandleInventoryDropToEquipmentSlot(UPNInventoryDragDropOperation* DragOperation, EPNEquipmentSlot TargetSlot);
+	UPNInventoryActionComponent* GetOwnerInventoryActionComponent() const;
 };

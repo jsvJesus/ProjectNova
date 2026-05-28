@@ -4,6 +4,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Blueprint/WidgetTree.h"
+#include "Blueprint/DragDropOperation.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/Overlay.h"
@@ -14,6 +15,9 @@
 #include "Styling/SlateBrush.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
+#include "Characters/PNBaseCharacter.h"
+#include "Inventory/PNInventoryActionComponent.h"
+#include "UI/PNPlayerHUDComponent.h"
 
 UPNInventoryHUDWidget::UPNInventoryHUDWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -37,6 +41,128 @@ void UPNInventoryHUDWidget::NativeDestruct()
 	UnbindNavigation();
 
 	Super::NativeDestruct();
+}
+
+bool UPNInventoryHUDWidget::NativeOnDrop(
+	const FGeometry& InGeometry,
+	const FDragDropEvent& InDragDropEvent,
+	UDragDropOperation* InOperation
+)
+{
+	if (UPNInventoryDragDropOperation* InventoryDragOperation = Cast<UPNInventoryDragDropOperation>(InOperation))
+	{
+		EPNEquipmentSlot TargetEquipmentSlot = EPNEquipmentSlot::None;
+
+		if (FindEquipmentSlotUnderCursor(InDragDropEvent.GetScreenSpacePosition(), TargetEquipmentSlot))
+		{
+			return TryHandleInventoryDropToEquipmentSlot(InventoryDragOperation, TargetEquipmentSlot);
+		}
+	}
+
+	return Super::NativeOnDrop(InGeometry, InDragDropEvent, InOperation);
+}
+
+bool UPNInventoryHUDWidget::FindEquipmentSlotUnderCursor(
+	const FVector2D& ScreenSpacePosition,
+	EPNEquipmentSlot& OutEquipmentSlot
+) const
+{
+	OutEquipmentSlot = EPNEquipmentSlot::None;
+
+	struct FPNEquipmentDropTarget
+	{
+		USizeBox* Widget = nullptr;
+		EPNEquipmentSlot Slot = EPNEquipmentSlot::None;
+	};
+
+	const FPNEquipmentDropTarget DropTargets[] =
+	{
+		{ Equip_PrimaryWeapon1, EPNEquipmentSlot::PrimaryWeapon1 },
+		{ Equip_PrimaryWeapon2, EPNEquipmentSlot::PrimaryWeapon2 },
+		{ Equip_Sidearm, EPNEquipmentSlot::Sidearm },
+		{ Equip_Knife, EPNEquipmentSlot::Knife },
+		{ Equip_Helmet, EPNEquipmentSlot::Helmet },
+		{ Equip_Armor, EPNEquipmentSlot::Armor },
+		{ Equip_Gloves, EPNEquipmentSlot::Gloves },
+		{ Equip_Backpack, EPNEquipmentSlot::Backpack }
+	};
+
+	for (const FPNEquipmentDropTarget& DropTarget : DropTargets)
+	{
+		if (!DropTarget.Widget || DropTarget.Slot == EPNEquipmentSlot::None)
+		{
+			continue;
+		}
+
+		if (DropTarget.Widget->GetVisibility() == ESlateVisibility::Collapsed)
+		{
+			continue;
+		}
+
+		if (DropTarget.Widget->GetCachedGeometry().IsUnderLocation(ScreenSpacePosition))
+		{
+			OutEquipmentSlot = DropTarget.Slot;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UPNInventoryHUDWidget::TryHandleInventoryDropToEquipmentSlot(
+	UPNInventoryDragDropOperation* DragOperation,
+	EPNEquipmentSlot TargetSlot
+)
+{
+	if (!DragOperation)
+	{
+		return false;
+	}
+
+	if (TargetSlot == EPNEquipmentSlot::None)
+	{
+		return false;
+	}
+
+	if (DragOperation->SourcePanel != EPNHUDInventoryPanel::MainInventory)
+	{
+		return false;
+	}
+
+	if (!DragOperation->SourceInventoryItemData.Item.bValid || !DragOperation->SourceInventoryItemData.Item.ItemData)
+	{
+		return false;
+	}
+
+	UPNInventoryActionComponent* InventoryActionComponent = GetOwnerInventoryActionComponent();
+	if (!InventoryActionComponent)
+	{
+		return false;
+	}
+
+	InventoryActionComponent->RequestEquipInventoryItem(
+		DragOperation->SourceInventoryPosition,
+		TargetSlot
+	);
+
+	return true;
+}
+
+UPNInventoryActionComponent* UPNInventoryHUDWidget::GetOwnerInventoryActionComponent() const
+{
+	APNBaseCharacter* OwnerCharacter = nullptr;
+
+	if (UPNPlayerHUDComponent* PlayerHUDComponent = GetHUDComponent())
+	{
+		OwnerCharacter = PlayerHUDComponent->GetOwnerProjectNovaCharacter();
+	}
+
+	if (!OwnerCharacter)
+	{
+		OwnerCharacter = Cast<APNBaseCharacter>(GetOwningPlayerPawn());
+	}
+
+	return OwnerCharacter ? OwnerCharacter->GetInventoryActionComponent() : nullptr;
 }
 
 void UPNInventoryHUDWidget::SetHUDData(const FPNPlayerHUDSnapshot& InHUDData)

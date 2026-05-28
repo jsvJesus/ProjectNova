@@ -1,6 +1,7 @@
 #include "UI/Inventory/PNHUDLayoutWidgets.h"
 
 #include "Blueprint/WidgetTree.h"
+#include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
@@ -21,6 +22,7 @@
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateTypes.h"
 #include "Widgets/SWidget.h"
+#include "InputCoreTypes.h"
 
 namespace
 {
@@ -481,57 +483,31 @@ void UPNInventoryGridWidget::AddNativeInventoryItem(const FPNHUDInventoryItemDat
 		static_cast<float>(ItemHeightSlots) * SlotSize
 	);
 
-	UOverlay* ItemOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-	ItemOverlay->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-
-	UBorder* ItemBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	ItemBackground->SetVisibility(ESlateVisibility::HitTestInvisible);
-
-	ApplyInventoryItemBackground(ItemBackground, ItemPixelSize);
-
-	if (UOverlaySlot* BackgroundSlot = ItemOverlay->AddChildToOverlay(ItemBackground))
-	{
-		BackgroundSlot->SetHorizontalAlignment(HAlign_Fill);
-		BackgroundSlot->SetVerticalAlignment(VAlign_Fill);
-	}
-
-	UImage* ItemIcon = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-	ItemIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
-
-	const float SlotPadding = FMath::Clamp(ItemIconPaddingPercent, 0.0f, 0.45f);
-	const FVector2D IconSize(
-		FMath::Max(1.0f, ItemPixelSize.X * (1.0f - SlotPadding * 2.0f)),
-		FMath::Max(1.0f, ItemPixelSize.Y * (1.0f - SlotPadding * 2.0f))
+	UPNInventoryItemWidget* ItemWidget = WidgetTree->ConstructWidget<UPNInventoryItemWidget>(
+		UPNInventoryItemWidget::StaticClass()
 	);
 
-	ApplyInventoryItemIcon(ItemIcon, ItemData.Item, IconSize);
-
-	if (UOverlaySlot* IconSlot = ItemOverlay->AddChildToOverlay(ItemIcon))
+	if (!ItemWidget)
 	{
-		IconSlot->SetHorizontalAlignment(HAlign_Center);
-		IconSlot->SetVerticalAlignment(VAlign_Center);
+		return;
 	}
 
-	if (ItemData.Item.Quantity > 1)
-	{
-		UTextBlock* QuantityText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-		QuantityText->SetText(FText::FromString(FString::Printf(TEXT("x%d"), ItemData.Item.Quantity)));
-		QuantityText->SetColorAndOpacity(FSlateColor(ItemQuantityTextColor));
-		QuantityText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Bold"), ItemQuantityFontSize));
-		QuantityText->SetJustification(ETextJustify::Right);
-		QuantityText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	ItemWidget->SetVisibility(ESlateVisibility::Visible);
+	ItemWidget->SetSourcePanel(InventoryData.Panel);
+	ItemWidget->SetNativeItemRenderSettings(
+		ItemPixelSize,
+		ItemBackgroundTexture,
+		ItemBackgroundFallbackColor,
+		ItemIconTintColor,
+		ItemQuantityTextColor,
+		ItemIconPaddingPercent,
+		ItemQuantityFontSize
+	);
+	ItemWidget->SetInventoryItemData(ItemData);
 
-		if (UOverlaySlot* QuantitySlot = ItemOverlay->AddChildToOverlay(QuantityText))
-		{
-			QuantitySlot->SetHorizontalAlignment(HAlign_Right);
-			QuantitySlot->SetVerticalAlignment(VAlign_Bottom);
-			QuantitySlot->SetPadding(FMargin(0.0f, 0.0f, 5.0f, 3.0f));
-		}
-	}
+	ItemCanvasPanel->AddChild(ItemWidget);
 
-	ItemCanvasPanel->AddChild(ItemOverlay);
-
-	if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(ItemOverlay->Slot))
+	if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(ItemWidget->Slot))
 	{
 		CanvasSlot->SetPosition(ItemPixelPosition);
 		CanvasSlot->SetSize(ItemPixelSize);
@@ -678,10 +654,136 @@ bool UPNInventoryGridSlotWidget::IsRootItemSlot() const
 	return SlotData.bRootItemSlot;
 }
 
+UPNInventoryItemWidget::UPNInventoryItemWidget(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	SetVisibility(ESlateVisibility::Visible);
+}
+
+TSharedRef<SWidget> UPNInventoryItemWidget::RebuildWidget()
+{
+	if (WidgetTree)
+	{
+		NativeItemRootOverlay = nullptr;
+		BuildNativeItemRoot();
+		RefreshNativeItemVisual();
+	}
+
+	return Super::RebuildWidget();
+}
+
+void UPNInventoryItemWidget::ReleaseSlateResources(bool bReleaseChildren)
+{
+	Super::ReleaseSlateResources(bReleaseChildren);
+
+	NativeItemRootOverlay = nullptr;
+}
+
+void UPNInventoryItemWidget::NativePreConstruct()
+{
+	Super::NativePreConstruct();
+
+	BuildNativeItemRoot();
+	RefreshNativeItemVisual();
+}
+
+void UPNInventoryItemWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	BuildNativeItemRoot();
+	RefreshNativeItemVisual();
+}
+
+FReply UPNInventoryItemWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (!InventoryItemData.Item.bValid || !InventoryItemData.Item.ItemData)
+	{
+		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+	}
+
+	if (SourcePanel != EPNHUDInventoryPanel::MainInventory)
+	{
+		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+	}
+
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		FEventReply Reply = UWidgetBlueprintLibrary::DetectDragIfPressed(
+			InMouseEvent,
+			this,
+			EKeys::LeftMouseButton
+		);
+
+		return Reply.NativeReply;
+	}
+
+	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+}
+
+void UPNInventoryItemWidget::NativeOnDragDetected(
+	const FGeometry& InGeometry,
+	const FPointerEvent& InMouseEvent,
+	UDragDropOperation*& OutOperation
+)
+{
+	Super::NativeOnDragDetected(InGeometry, InMouseEvent, OutOperation);
+
+	if (!InventoryItemData.Item.bValid || !InventoryItemData.Item.ItemData)
+	{
+		return;
+	}
+
+	UPNInventoryDragDropOperation* DragOperation = NewObject<UPNInventoryDragDropOperation>(this);
+	if (!DragOperation)
+	{
+		return;
+	}
+
+	DragOperation->SourcePanel = SourcePanel;
+	DragOperation->SourceInventoryPosition = InventoryItemData.Position;
+	DragOperation->SourceInventoryItemData = InventoryItemData;
+	DragOperation->DefaultDragVisual = CreateDragVisualWidget();
+	DragOperation->Pivot = EDragPivot::CenterCenter;
+
+	OutOperation = DragOperation;
+}
+
 void UPNInventoryItemWidget::SetInventoryItemData(const FPNHUDInventoryItemData& InItemData)
 {
 	InventoryItemData = InItemData;
+
+	RefreshNativeItemVisual();
+
 	BP_OnInventoryItemDataUpdated(InventoryItemData);
+}
+
+void UPNInventoryItemWidget::SetSourcePanel(EPNHUDInventoryPanel InSourcePanel)
+{
+	SourcePanel = InSourcePanel;
+}
+
+void UPNInventoryItemWidget::SetNativeItemRenderSettings(
+	FVector2D InPixelSize,
+	TSoftObjectPtr<UTexture2D> InBackgroundTexture,
+	FLinearColor InBackgroundFallbackColor,
+	FLinearColor InIconTintColor,
+	FLinearColor InQuantityTextColor,
+	float InIconPaddingPercent,
+	int32 InQuantityFontSize
+)
+{
+	NativeItemPixelSize.X = FMath::Max(1.0f, InPixelSize.X);
+	NativeItemPixelSize.Y = FMath::Max(1.0f, InPixelSize.Y);
+
+	NativeItemBackgroundTexture = InBackgroundTexture;
+	NativeItemBackgroundFallbackColor = InBackgroundFallbackColor;
+	NativeItemIconTintColor = InIconTintColor;
+	NativeItemQuantityTextColor = InQuantityTextColor;
+	NativeItemIconPaddingPercent = FMath::Clamp(InIconPaddingPercent, 0.0f, 0.45f);
+	NativeItemQuantityFontSize = FMath::Max(1, InQuantityFontSize);
+
+	RefreshNativeItemVisual();
 }
 
 const FPNHUDInventoryItemData& UPNInventoryItemWidget::GetInventoryItemData() const
@@ -712,6 +814,183 @@ FText UPNInventoryItemWidget::GetItemName() const
 int32 UPNInventoryItemWidget::GetQuantity() const
 {
 	return InventoryItemData.Item.Quantity;
+}
+
+void UPNInventoryItemWidget::BuildNativeItemRoot()
+{
+	if (!WidgetTree)
+	{
+		return;
+	}
+
+	if (NativeItemRootOverlay)
+	{
+		return;
+	}
+
+	NativeItemRootOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("InventoryItemRoot"));
+	if (!NativeItemRootOverlay)
+	{
+		return;
+	}
+
+	NativeItemRootOverlay->SetVisibility(ESlateVisibility::Visible);
+	WidgetTree->RootWidget = NativeItemRootOverlay;
+}
+
+void UPNInventoryItemWidget::RefreshNativeItemVisual()
+{
+	if (!WidgetTree)
+	{
+		return;
+	}
+
+	BuildNativeItemRoot();
+
+	if (!NativeItemRootOverlay)
+	{
+		return;
+	}
+
+	NativeItemRootOverlay->ClearChildren();
+
+	if (!InventoryItemData.Item.bValid || !InventoryItemData.Item.ItemData)
+	{
+		return;
+	}
+
+	UBorder* ItemBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	if (ItemBackground)
+	{
+		ItemBackground->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+		UTexture2D* BackgroundTexture = NativeItemBackgroundTexture.LoadSynchronous();
+
+		const FSlateBrush BackgroundBrush = BackgroundTexture
+			? PNMakeTextureBrush(BackgroundTexture, NativeItemPixelSize)
+			: PNMakeColorBrush(NativeItemBackgroundFallbackColor, NativeItemPixelSize);
+
+		ItemBackground->SetBrush(BackgroundBrush);
+
+		if (UOverlaySlot* BackgroundSlot = NativeItemRootOverlay->AddChildToOverlay(ItemBackground))
+		{
+			BackgroundSlot->SetHorizontalAlignment(HAlign_Fill);
+			BackgroundSlot->SetVerticalAlignment(VAlign_Fill);
+		}
+	}
+
+	UImage* ItemIcon = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+	if (ItemIcon)
+	{
+		ItemIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+		if (!InventoryItemData.Item.ItemData->Visual.Icon.IsNull())
+		{
+			if (UTexture2D* IconTexture = InventoryItemData.Item.ItemData->Visual.Icon.LoadSynchronous())
+			{
+				const float NewSlotPadding = FMath::Clamp(NativeItemIconPaddingPercent, 0.0f, 0.45f);
+
+				const FVector2D IconSize(
+					FMath::Max(1.0f, NativeItemPixelSize.X * (1.0f - NewSlotPadding * 2.0f)),
+					FMath::Max(1.0f, NativeItemPixelSize.Y * (1.0f - NewSlotPadding * 2.0f))
+				);
+
+				FSlateBrush IconBrush = PNMakeTextureBrush(IconTexture, IconSize);
+				IconBrush.TintColor = FSlateColor(NativeItemIconTintColor);
+
+				ItemIcon->SetBrush(IconBrush);
+				ItemIcon->SetDesiredSizeOverride(IconSize);
+
+				if (UOverlaySlot* IconSlot = NativeItemRootOverlay->AddChildToOverlay(ItemIcon))
+				{
+					IconSlot->SetHorizontalAlignment(HAlign_Center);
+					IconSlot->SetVerticalAlignment(VAlign_Center);
+				}
+			}
+		}
+	}
+
+	if (InventoryItemData.Item.Quantity > 1)
+	{
+		UTextBlock* QuantityText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		if (QuantityText)
+		{
+			QuantityText->SetText(FText::FromString(FString::Printf(TEXT("x%d"), InventoryItemData.Item.Quantity)));
+			QuantityText->SetColorAndOpacity(FSlateColor(NativeItemQuantityTextColor));
+			QuantityText->SetFont(FCoreStyle::GetDefaultFontStyle(TEXT("Bold"), NativeItemQuantityFontSize));
+			QuantityText->SetJustification(ETextJustify::Right);
+			QuantityText->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+			if (UOverlaySlot* QuantitySlot = NativeItemRootOverlay->AddChildToOverlay(QuantityText))
+			{
+				QuantitySlot->SetHorizontalAlignment(HAlign_Right);
+				QuantitySlot->SetVerticalAlignment(VAlign_Bottom);
+				QuantitySlot->SetPadding(FMargin(0.0f, 0.0f, 5.0f, 3.0f));
+			}
+		}
+	}
+}
+
+UWidget* UPNInventoryItemWidget::CreateDragVisualWidget()
+{
+	if (!WidgetTree)
+	{
+		return nullptr;
+	}
+
+	UOverlay* DragOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+	if (!DragOverlay)
+	{
+		return nullptr;
+	}
+
+	DragOverlay->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+	UBorder* DragBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	if (DragBackground)
+	{
+		UTexture2D* BackgroundTexture = NativeItemBackgroundTexture.LoadSynchronous();
+
+		const FSlateBrush BackgroundBrush = BackgroundTexture
+			? PNMakeTextureBrush(BackgroundTexture, NativeItemPixelSize)
+			: PNMakeColorBrush(NativeItemBackgroundFallbackColor, NativeItemPixelSize);
+
+		DragBackground->SetBrush(BackgroundBrush);
+		DragBackground->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+		if (UOverlaySlot* BackgroundSlot = DragOverlay->AddChildToOverlay(DragBackground))
+		{
+			BackgroundSlot->SetHorizontalAlignment(HAlign_Fill);
+			BackgroundSlot->SetVerticalAlignment(VAlign_Fill);
+		}
+	}
+
+	if (InventoryItemData.Item.bValid && InventoryItemData.Item.ItemData && !InventoryItemData.Item.ItemData->Visual.Icon.IsNull())
+	{
+		if (UTexture2D* IconTexture = InventoryItemData.Item.ItemData->Visual.Icon.LoadSynchronous())
+		{
+			UImage* DragIcon = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+			if (DragIcon)
+			{
+				const FVector2D IconSize = NativeItemPixelSize * 0.85f;
+
+				FSlateBrush IconBrush = PNMakeTextureBrush(IconTexture, IconSize);
+				IconBrush.TintColor = FSlateColor(NativeItemIconTintColor);
+
+				DragIcon->SetBrush(IconBrush);
+				DragIcon->SetDesiredSizeOverride(IconSize);
+				DragIcon->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+				if (UOverlaySlot* IconSlot = DragOverlay->AddChildToOverlay(DragIcon))
+				{
+					IconSlot->SetHorizontalAlignment(HAlign_Center);
+					IconSlot->SetVerticalAlignment(VAlign_Center);
+				}
+			}
+		}
+	}
+
+	return DragOverlay;
 }
 
 UPNEquipmentLayoutWidget::UPNEquipmentLayoutWidget(const FObjectInitializer& ObjectInitializer)

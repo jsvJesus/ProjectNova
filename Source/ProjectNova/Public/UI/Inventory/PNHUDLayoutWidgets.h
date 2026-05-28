@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "UI/PNHUDTypes.h"
+#include "Blueprint/DragDropOperation.h"
 #include "PNHUDLayoutWidgets.generated.h"
 
 class UBorder;
@@ -120,6 +121,22 @@ struct PROJECTNOVA_API FPNHUDInventoryItemSizeTextureSet
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPNHUDNavigationPageRequestedSignature, EPNInventoryHUDPage, Page);
+
+UCLASS(BlueprintType)
+class PROJECTNOVA_API UPNInventoryDragDropOperation : public UDragDropOperation
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory Drag Drop")
+	EPNHUDInventoryPanel SourcePanel = EPNHUDInventoryPanel::None;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory Drag Drop")
+	FPNInventoryGridPosition SourceInventoryPosition;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory Drag Drop")
+	FPNHUDInventoryItemData SourceInventoryItemData;
+};
 
 UCLASS(BlueprintType, Blueprintable)
 class PROJECTNOVA_API UPNHUDLayoutWidget : public UUserWidget
@@ -373,13 +390,71 @@ class PROJECTNOVA_API UPNInventoryItemWidget : public UPNHUDLayoutWidget
 {
 	GENERATED_BODY()
 
+public:
+	UPNInventoryItemWidget(const FObjectInitializer& ObjectInitializer);
+
+protected:
+	virtual TSharedRef<SWidget> RebuildWidget() override;
+	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+
+	virtual void NativePreConstruct() override;
+	virtual void NativeConstruct() override;
+
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnDragDetected(
+		const FGeometry& InGeometry,
+		const FPointerEvent& InMouseEvent,
+		UDragDropOperation*& OutOperation
+	) override;
+
 protected:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Inventory Item")
 	FPNHUDInventoryItemData InventoryItemData;
 
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Inventory Item")
+	EPNHUDInventoryPanel SourcePanel = EPNHUDInventoryPanel::None;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Inventory Item")
+	FVector2D NativeItemPixelSize = FVector2D(64.0f, 64.0f);
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Inventory Item")
+	TSoftObjectPtr<UTexture2D> NativeItemBackgroundTexture;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Inventory Item")
+	FLinearColor NativeItemBackgroundFallbackColor = FLinearColor(0.08f, 0.09f, 0.10f, 0.96f);
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Inventory Item")
+	FLinearColor NativeItemIconTintColor = FLinearColor::White;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Inventory Item")
+	FLinearColor NativeItemQuantityTextColor = FLinearColor(0.92f, 0.95f, 0.96f, 1.0f);
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Inventory Item")
+	float NativeItemIconPaddingPercent = 0.12f;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Inventory Item")
+	int32 NativeItemQuantityFontSize = 14;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UOverlay> NativeItemRootOverlay = nullptr;
+
 public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory Item")
 	void SetInventoryItemData(const FPNHUDInventoryItemData& InItemData);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory Item")
+	void SetSourcePanel(EPNHUDInventoryPanel InSourcePanel);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory Item")
+	void SetNativeItemRenderSettings(
+		FVector2D InPixelSize,
+		TSoftObjectPtr<UTexture2D> InBackgroundTexture,
+		FLinearColor InBackgroundFallbackColor,
+		FLinearColor InIconTintColor,
+		FLinearColor InQuantityTextColor,
+		float InIconPaddingPercent,
+		int32 InQuantityFontSize
+	);
 
 	UFUNCTION(BlueprintPure, Category = "Inventory Item")
 	const FPNHUDInventoryItemData& GetInventoryItemData() const;
@@ -398,6 +473,11 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Inventory Item")
 	void BP_OnInventoryItemDataUpdated(const FPNHUDInventoryItemData& InItemData);
+
+protected:
+	void BuildNativeItemRoot();
+	void RefreshNativeItemVisual();
+	UWidget* CreateDragVisualWidget();
 };
 
 UCLASS(BlueprintType, Blueprintable)
