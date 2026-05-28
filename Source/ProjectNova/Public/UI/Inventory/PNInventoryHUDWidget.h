@@ -37,12 +37,6 @@ protected:
 	TObjectPtr<UPNInventoryGridWidget> InventoryLayout = nullptr;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectNova|Inventory HUD")
-	TObjectPtr<UPNInventoryGridWidget> VestInventoryLayout = nullptr;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectNova|Inventory HUD")
-	TObjectPtr<UPNInventoryGridWidget> BackpackInventoryLayout = nullptr;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectNova|Inventory HUD")
 	TObjectPtr<UPNEquipmentLayoutWidget> EquipmentLayout = nullptr;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectNova|Inventory HUD")

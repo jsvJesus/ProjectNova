@@ -148,12 +148,6 @@ protected:
 	FPNHUDInventoryPanelWidgetRefs MainInventoryRefs;
 
 	UPROPERTY(Transient)
-	FPNHUDInventoryPanelWidgetRefs BackpackInventoryRefs;
-
-	UPROPERTY(Transient)
-	FPNHUDInventoryPanelWidgetRefs VestInventoryRefs;
-
-	UPROPERTY(Transient)
 	FPNHUDInventoryPanelWidgetRefs ContainerInventoryRefs;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "ProjectNova|HUD")

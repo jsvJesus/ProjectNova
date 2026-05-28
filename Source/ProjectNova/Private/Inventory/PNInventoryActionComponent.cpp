@@ -132,6 +132,11 @@ void UPNInventoryActionComponent::RequestEquipInventoryItem(FPNInventoryGridPosi
 	RequestInventoryAction(Request);
 }
 
+void UPNInventoryActionComponent::RequestEquipKnifeFromInventory(FPNInventoryGridPosition InventoryPosition)
+{
+	RequestEquipInventoryItem(InventoryPosition, EPNEquipmentSlot::Knife);
+}
+
 void UPNInventoryActionComponent::RequestUnequipItem(EPNEquipmentSlot SourceSlot)
 {
 	FPNInventoryActionRequest Request;

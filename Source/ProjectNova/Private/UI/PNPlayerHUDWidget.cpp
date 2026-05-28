@@ -288,8 +288,6 @@ void UPNPlayerHUDWidget::BuildInventoryPanel()
 	}
 
 	MainInventoryRefs = CreateInventoryPanel(InventoryPanelsBox, FText::FromString(TEXT("MAIN")));
-	BackpackInventoryRefs = CreateInventoryPanel(InventoryPanelsBox, FText::FromString(TEXT("BACKPACK")));
-	VestInventoryRefs = CreateInventoryPanel(InventoryPanelsBox, FText::FromString(TEXT("VEST")));
 	ContainerInventoryRefs = CreateInventoryPanel(InventoryPanelsBox, FText::FromString(TEXT("LOOT")));
 }
 

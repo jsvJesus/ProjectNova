@@ -7,6 +7,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Interaction/PNInteractionComponent.h"
 #include "Items/PNQuickSlotComponent.h"
+#include "Equipment/PNEquipmentComponent.h"
+#include "Items/PNItemDataAsset.h"
 #include "Net/UnrealNetwork.h"
 
 APNPlayerCharacter::APNPlayerCharacter()
@@ -56,6 +58,32 @@ void APNPlayerCharacter::BeginPlay()
 
 	ApplyFirstPersonArmsMesh();
 	ApplyFirstPersonArmsAnimClass();
+
+	if (UPNEquipmentComponent* PNEquipmentComponent = GetEquipmentComponent())
+	{
+		PNEquipmentComponent->OnEquipmentChanged.AddUniqueDynamic(
+			this,
+			&APNPlayerCharacter::HandleFirstPersonEquipmentChanged
+		);
+	}
+
+	if (HasAuthority())
+	{
+		RefreshFirstPersonAnimTypeFromEquipment();
+	}
+}
+
+void APNPlayerCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UPNEquipmentComponent* PNEquipmentComponent = GetEquipmentComponent())
+	{
+		PNEquipmentComponent->OnEquipmentChanged.RemoveDynamic(
+			this,
+			&APNPlayerCharacter::HandleFirstPersonEquipmentChanged
+		);
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 void APNPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -395,4 +423,50 @@ void APNPlayerCharacter::OnRep_FirstPersonArmsMesh()
 
 void APNPlayerCharacter::OnRep_FirstPersonAnimType()
 {
+	// AnimInstance сам читает CurrentAnimType каждый тик.
+}
+
+void APNPlayerCharacter::HandleFirstPersonEquipmentChanged()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	RefreshFirstPersonAnimTypeFromEquipment();
+}
+
+void APNPlayerCharacter::RefreshFirstPersonAnimTypeFromEquipment()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	const EPNAnimType NewAnimType = ResolveFirstPersonAnimTypeFromEquipment();
+
+	if (FirstPersonAnimType == NewAnimType)
+	{
+		return;
+	}
+
+	FirstPersonAnimType = NewAnimType;
+	OnRep_FirstPersonAnimType();
+}
+
+EPNAnimType APNPlayerCharacter::ResolveFirstPersonAnimTypeFromEquipment() const
+{
+	const UPNEquipmentComponent* PNEquipmentComponent = GetEquipmentComponent();
+	if (!PNEquipmentComponent)
+	{
+		return EPNAnimType::Unarmed;
+	}
+
+	UPNItemDataAsset* KnifeData = PNEquipmentComponent->GetEquippedItemData(EPNEquipmentSlot::Knife);
+	if (KnifeData && KnifeData->ItemType == EPNItemType::IT_Weapon && KnifeData->ItemCategory == EPNItemCategory::Melee)
+	{
+		return EPNAnimType::Knife;
+	}
+
+	return EPNAnimType::Unarmed;
 }

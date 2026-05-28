@@ -79,6 +79,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Anim")
 	EPNAnimType GetCurrentAnimType() const;
 
+	UFUNCTION(BlueprintPure, Category = "Anim", meta = (BlueprintThreadSafe))
+	bool IsKnifeAnim() const;
+
 protected:
 	void RefreshCachedCharacter();
 	void ResetAnimationState();

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "PNBaseCharacter.h"
 #include "Items/PNItemTypes.h"
+#include "Equipment/PNEquipmentTypes.h"
 #include "PNPlayerCharacter.generated.h"
 
 class UAnimInstance;
@@ -23,6 +24,7 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "First Person")
@@ -106,6 +108,12 @@ protected:
 
 	UFUNCTION()
 	void OnRep_FirstPersonAnimType();
+
+	UFUNCTION()
+	void HandleFirstPersonEquipmentChanged();
+
+	void RefreshFirstPersonAnimTypeFromEquipment();
+	EPNAnimType ResolveFirstPersonAnimTypeFromEquipment() const;
 
 	void QuickSlotInput_5();
 	void QuickSlotInput_6();

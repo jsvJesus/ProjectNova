@@ -60,6 +60,9 @@ public:
 	void RequestEquipInventoryItem(FPNInventoryGridPosition InventoryPosition, EPNEquipmentSlot TargetSlot);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory Action|Equip")
+	void RequestEquipKnifeFromInventory(FPNInventoryGridPosition InventoryPosition);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory Action|Equip")
 	void RequestUnequipItem(EPNEquipmentSlot SourceSlot);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory Action|Move")
