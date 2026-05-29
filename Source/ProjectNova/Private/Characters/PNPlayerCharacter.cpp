@@ -4,6 +4,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Interaction/PNInteractionComponent.h"
 #include "Items/PNQuickSlotComponent.h"
@@ -36,6 +37,26 @@ APNPlayerCharacter::APNPlayerCharacter()
 	FirstPersonArmsMeshComponent->CastShadow = false;
 	FirstPersonArmsMeshComponent->bCastDynamicShadow = false;
 
+	FirstPersonEquippedStaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("FirstPersonEquippedStaticMeshComponent"));
+	FirstPersonEquippedStaticMeshComponent->SetupAttachment(FirstPersonArmsMeshComponent);
+	FirstPersonEquippedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	FirstPersonEquippedStaticMeshComponent->SetOnlyOwnerSee(true);
+	FirstPersonEquippedStaticMeshComponent->SetOwnerNoSee(false);
+	FirstPersonEquippedStaticMeshComponent->SetVisibility(false, true);
+	FirstPersonEquippedStaticMeshComponent->SetHiddenInGame(true, true);
+	FirstPersonEquippedStaticMeshComponent->CastShadow = false;
+	FirstPersonEquippedStaticMeshComponent->bCastDynamicShadow = false;
+
+	FirstPersonEquippedSkeletalMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FirstPersonEquippedSkeletalMeshComponent"));
+	FirstPersonEquippedSkeletalMeshComponent->SetupAttachment(FirstPersonArmsMeshComponent);
+	FirstPersonEquippedSkeletalMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	FirstPersonEquippedSkeletalMeshComponent->SetOnlyOwnerSee(true);
+	FirstPersonEquippedSkeletalMeshComponent->SetOwnerNoSee(false);
+	FirstPersonEquippedSkeletalMeshComponent->SetVisibility(false, true);
+	FirstPersonEquippedSkeletalMeshComponent->SetHiddenInGame(true, true);
+	FirstPersonEquippedSkeletalMeshComponent->CastShadow = false;
+	FirstPersonEquippedSkeletalMeshComponent->bCastDynamicShadow = false;
+
 	InteractionComponent = CreateDefaultSubobject<UPNInteractionComponent>(TEXT("InteractionComponent"));
 }
 
@@ -58,6 +79,7 @@ void APNPlayerCharacter::BeginPlay()
 
 	ApplyFirstPersonArmsMesh();
 	ApplyFirstPersonArmsAnimClass();
+	RefreshFirstPersonEquippedItemVisual();
 
 	if (UPNEquipmentComponent* PNEquipmentComponent = GetEquipmentComponent())
 	{
@@ -135,6 +157,16 @@ UCameraComponent* APNPlayerCharacter::GetFirstPersonCameraComponent() const
 USkeletalMeshComponent* APNPlayerCharacter::GetFirstPersonArmsMeshComponent() const
 {
 	return FirstPersonArmsMeshComponent;
+}
+
+UStaticMeshComponent* APNPlayerCharacter::GetFirstPersonEquippedStaticMeshComponent() const
+{
+	return FirstPersonEquippedStaticMeshComponent;
+}
+
+USkeletalMeshComponent* APNPlayerCharacter::GetFirstPersonEquippedSkeletalMeshComponent() const
+{
+	return FirstPersonEquippedSkeletalMeshComponent;
 }
 
 UPNInteractionComponent* APNPlayerCharacter::GetInteractionComponent() const
@@ -423,17 +455,17 @@ void APNPlayerCharacter::OnRep_FirstPersonArmsMesh()
 
 void APNPlayerCharacter::OnRep_FirstPersonAnimType()
 {
-	// AnimInstance сам читает CurrentAnimType каждый тик.
+	RefreshFirstPersonEquippedItemVisual();
 }
 
 void APNPlayerCharacter::HandleFirstPersonEquipmentChanged()
 {
-	if (!HasAuthority())
+	if (HasAuthority())
 	{
-		return;
+		RefreshFirstPersonAnimTypeFromEquipment();
 	}
 
-	RefreshFirstPersonAnimTypeFromEquipment();
+	RefreshFirstPersonEquippedItemVisual();
 }
 
 void APNPlayerCharacter::RefreshFirstPersonAnimTypeFromEquipment()
@@ -485,4 +517,142 @@ EPNAnimType APNPlayerCharacter::ResolveFirstPersonAnimTypeFromEquipment() const
 	}
 
 	return EPNAnimType::Unarmed;
+}
+
+void APNPlayerCharacter::RefreshFirstPersonEquippedItemVisual()
+{
+	if (!FirstPersonArmsMeshComponent)
+	{
+		ClearFirstPersonEquippedItemVisual();
+		return;
+	}
+
+	UPNItemDataAsset* WeaponData = GetFirstPersonEquippedWeaponData();
+	if (!WeaponData)
+	{
+		ClearFirstPersonEquippedItemVisual();
+		return;
+	}
+
+	const FName AttachSocketName = ResolveFirstPersonWeaponAttachSocketName(WeaponData);
+
+	if (FirstPersonEquippedStaticMeshComponent)
+	{
+		FirstPersonEquippedStaticMeshComponent->SetStaticMesh(nullptr);
+		FirstPersonEquippedStaticMeshComponent->SetVisibility(false, true);
+		FirstPersonEquippedStaticMeshComponent->SetHiddenInGame(true, true);
+	}
+
+	if (FirstPersonEquippedSkeletalMeshComponent)
+	{
+		FirstPersonEquippedSkeletalMeshComponent->SetSkeletalMesh(nullptr);
+		FirstPersonEquippedSkeletalMeshComponent->SetVisibility(false, true);
+		FirstPersonEquippedSkeletalMeshComponent->SetHiddenInGame(true, true);
+	}
+
+	if (!WeaponData->Visual.SkeletalMesh.IsNull())
+	{
+		USkeletalMesh* WeaponSkeletalMesh = WeaponData->Visual.SkeletalMesh.LoadSynchronous();
+		if (WeaponSkeletalMesh && FirstPersonEquippedSkeletalMeshComponent)
+		{
+			FirstPersonEquippedSkeletalMeshComponent->AttachToComponent(
+				FirstPersonArmsMeshComponent,
+				FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+				AttachSocketName
+			);
+
+			FirstPersonEquippedSkeletalMeshComponent->SetSkeletalMesh(WeaponSkeletalMesh);
+			FirstPersonEquippedSkeletalMeshComponent->SetRelativeLocation(FirstPersonWeaponRelativeLocation);
+			FirstPersonEquippedSkeletalMeshComponent->SetRelativeRotation(FirstPersonWeaponRelativeRotation);
+			FirstPersonEquippedSkeletalMeshComponent->SetRelativeScale3D(FirstPersonWeaponRelativeScale);
+			FirstPersonEquippedSkeletalMeshComponent->SetVisibility(true, true);
+			FirstPersonEquippedSkeletalMeshComponent->SetHiddenInGame(false, true);
+		}
+
+		return;
+	}
+
+	if (!WeaponData->Visual.StaticMesh.IsNull())
+	{
+		UStaticMesh* WeaponStaticMesh = WeaponData->Visual.StaticMesh.LoadSynchronous();
+		if (WeaponStaticMesh && FirstPersonEquippedStaticMeshComponent)
+		{
+			FirstPersonEquippedStaticMeshComponent->AttachToComponent(
+				FirstPersonArmsMeshComponent,
+				FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+				AttachSocketName
+			);
+
+			FirstPersonEquippedStaticMeshComponent->SetStaticMesh(WeaponStaticMesh);
+			FirstPersonEquippedStaticMeshComponent->SetRelativeLocation(FirstPersonWeaponRelativeLocation);
+			FirstPersonEquippedStaticMeshComponent->SetRelativeRotation(FirstPersonWeaponRelativeRotation);
+			FirstPersonEquippedStaticMeshComponent->SetRelativeScale3D(FirstPersonWeaponRelativeScale);
+			FirstPersonEquippedStaticMeshComponent->SetVisibility(true, true);
+			FirstPersonEquippedStaticMeshComponent->SetHiddenInGame(false, true);
+		}
+
+		return;
+	}
+
+	ClearFirstPersonEquippedItemVisual();
+}
+
+void APNPlayerCharacter::ClearFirstPersonEquippedItemVisual()
+{
+	if (FirstPersonEquippedStaticMeshComponent)
+	{
+		FirstPersonEquippedStaticMeshComponent->SetStaticMesh(nullptr);
+		FirstPersonEquippedStaticMeshComponent->SetVisibility(false, true);
+		FirstPersonEquippedStaticMeshComponent->SetHiddenInGame(true, true);
+	}
+
+	if (FirstPersonEquippedSkeletalMeshComponent)
+	{
+		FirstPersonEquippedSkeletalMeshComponent->SetSkeletalMesh(nullptr);
+		FirstPersonEquippedSkeletalMeshComponent->SetVisibility(false, true);
+		FirstPersonEquippedSkeletalMeshComponent->SetHiddenInGame(true, true);
+	}
+}
+
+UPNItemDataAsset* APNPlayerCharacter::GetFirstPersonEquippedWeaponData() const
+{
+	const UPNEquipmentComponent* PNEquipmentComponent = GetEquipmentComponent();
+	if (!PNEquipmentComponent)
+	{
+		return nullptr;
+	}
+
+	const TArray<EPNEquipmentSlot> WeaponSlots =
+	{
+		EPNEquipmentSlot::PrimaryWeapon1,
+		EPNEquipmentSlot::PrimaryWeapon2,
+		EPNEquipmentSlot::Sidearm,
+		EPNEquipmentSlot::Knife
+	};
+
+	for (const EPNEquipmentSlot WeaponSlot : WeaponSlots)
+	{
+		UPNItemDataAsset* WeaponData = PNEquipmentComponent->GetEquippedItemData(WeaponSlot);
+		if (!WeaponData || WeaponData->ItemType != EPNItemType::IT_Weapon)
+		{
+			continue;
+		}
+
+		if (WeaponData->WeaponStats.AnimType != EPNAnimType::None)
+		{
+			return WeaponData;
+		}
+	}
+
+	return nullptr;
+}
+
+FName APNPlayerCharacter::ResolveFirstPersonWeaponAttachSocketName(UPNItemDataAsset* WeaponData) const
+{
+	if (WeaponData && !WeaponData->WeaponStats.HandSocketName.IsNone())
+	{
+		return WeaponData->WeaponStats.HandSocketName;
+	}
+
+	return DefaultFirstPersonWeaponSocketName;
 }

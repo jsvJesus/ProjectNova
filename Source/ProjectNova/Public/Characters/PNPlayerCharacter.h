@@ -11,6 +11,8 @@ class UCameraComponent;
 class UPNInteractionComponent;
 class USkeletalMesh;
 class USkeletalMeshComponent;
+class UStaticMesh;
+class UStaticMeshComponent;
 
 UCLASS()
 class PROJECTNOVA_API APNPlayerCharacter : public APNBaseCharacter
@@ -33,6 +35,12 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "First Person")
 	TObjectPtr<USkeletalMeshComponent> FirstPersonArmsMeshComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "First Person|Weapon")
+	TObjectPtr<UStaticMeshComponent> FirstPersonEquippedStaticMeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "First Person|Weapon")
+	TObjectPtr<USkeletalMeshComponent> FirstPersonEquippedSkeletalMeshComponent;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
 	TObjectPtr<UPNInteractionComponent> InteractionComponent;
 
@@ -51,6 +59,18 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "First Person")
 	FRotator FirstPersonArmsRelativeRotation = FRotator(0.0f, 0.0f, 0.0f);
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "First Person|Weapon")
+	FName DefaultFirstPersonWeaponSocketName = TEXT("hand_r");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "First Person|Weapon")
+	FVector FirstPersonWeaponRelativeLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "First Person|Weapon")
+	FRotator FirstPersonWeaponRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "First Person|Weapon")
+	FVector FirstPersonWeaponRelativeScale = FVector(1.0f, 1.0f, 1.0f);
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quick Slots", meta = (ClampMin = "0.05"))
 	float QuickSlotDoubleClickTime = 0.25f;
 
@@ -64,6 +84,12 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "First Person")
 	USkeletalMeshComponent* GetFirstPersonArmsMeshComponent() const;
+
+	UFUNCTION(BlueprintPure, Category = "First Person|Weapon")
+	UStaticMeshComponent* GetFirstPersonEquippedStaticMeshComponent() const;
+
+	UFUNCTION(BlueprintPure, Category = "First Person|Weapon")
+	USkeletalMeshComponent* GetFirstPersonEquippedSkeletalMeshComponent() const;
 
 	UFUNCTION(BlueprintPure, Category = "Interaction")
 	UPNInteractionComponent* GetInteractionComponent() const;
@@ -102,6 +128,12 @@ protected:
 	void StopCrouchInput();
 
 	void RefreshFirstPersonVisibility();
+
+	void RefreshFirstPersonEquippedItemVisual();
+	void ClearFirstPersonEquippedItemVisual();
+
+	UPNItemDataAsset* GetFirstPersonEquippedWeaponData() const;
+	FName ResolveFirstPersonWeaponAttachSocketName(UPNItemDataAsset* WeaponData) const;
 
 	UFUNCTION()
 	void OnRep_FirstPersonArmsMesh();
