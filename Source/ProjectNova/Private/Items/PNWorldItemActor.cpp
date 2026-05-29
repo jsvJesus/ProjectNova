@@ -121,15 +121,36 @@ bool APNWorldItemActor::PickupToInventory(UPNInventoryComponent* TargetInventory
 
 	if (AddResult.RemainingQuantity <= 0)
 	{
+		ItemInstance = nullptr;
+		DefaultItemData = nullptr;
+		DefaultQuantity = 1;
+
+		if (MeshComponent)
+		{
+			MeshComponent->SetSimulatePhysics(false);
+			MeshComponent->SetEnableGravity(false);
+			MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			MeshComponent->SetStaticMesh(nullptr);
+		}
+
+		if (PickupSphere)
+		{
+			PickupSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			PickupSphere->SetGenerateOverlapEvents(false);
+		}
+
+		SetActorHiddenInGame(true);
+		SetActorEnableCollision(false);
+
+		BroadcastWorldItemChanged();
+
 		if (bDestroyWhenPickedUp)
 		{
 			Destroy();
 		}
 		else
 		{
-			ItemInstance = nullptr;
-			RefreshVisual();
-			BroadcastWorldItemChanged();
+			SetLifeSpan(0.2f);
 		}
 
 		return true;
@@ -146,7 +167,7 @@ bool APNWorldItemActor::PickupToInventory(UPNInventoryComponent* TargetInventory
 
 void APNWorldItemActor::RefreshVisual()
 {
-	UPNItemDataAsset* Data = GetItemData();
+	UPNItemDataAsset* Data = ItemInstance ? ItemInstance->GetItemData() : nullptr;
 
 	if (!MeshComponent)
 	{
@@ -185,13 +206,35 @@ void APNWorldItemActor::SetQuantity(int32 NewQuantity)
 
 	if (ItemInstance->IsEmpty())
 	{
+		ItemInstance = nullptr;
+		DefaultItemData = nullptr;
+		DefaultQuantity = 1;
+
+		if (MeshComponent)
+		{
+			MeshComponent->SetSimulatePhysics(false);
+			MeshComponent->SetEnableGravity(false);
+			MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			MeshComponent->SetStaticMesh(nullptr);
+		}
+
+		if (PickupSphere)
+		{
+			PickupSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			PickupSphere->SetGenerateOverlapEvents(false);
+		}
+
+		SetActorHiddenInGame(true);
+		SetActorEnableCollision(false);
+
 		if (bDestroyWhenPickedUp)
 		{
 			Destroy();
 			return;
 		}
 
-		ItemInstance = nullptr;
+		SetLifeSpan(0.2f);
+		return;
 	}
 
 	RefreshVisual();
