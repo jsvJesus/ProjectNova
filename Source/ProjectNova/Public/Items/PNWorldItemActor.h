@@ -46,7 +46,7 @@ public:
 	bool bDestroyWhenPickedUp = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "World Item|Physics")
-	bool bSimulatePhysicsOnSpawn = true;
+	bool bSimulatePhysicsOnSpawn = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "World Item|Interaction", meta = (ClampMin = "10.0"))
 	float InteractionRadius = 120.0f;

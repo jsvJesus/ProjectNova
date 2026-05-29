@@ -52,6 +52,11 @@ void APNWorldItemActor::BeginPlay()
 
 	ApplyInteractionRadius();
 
+	if (DefaultItemData)
+	{
+		bConsumed = false;
+	}
+
 	if (bInitializeOnBeginPlay && !ItemInstance && DefaultItemData)
 	{
 		InitializeFromData(DefaultItemData, DefaultQuantity);
@@ -61,7 +66,12 @@ void APNWorldItemActor::BeginPlay()
 		RefreshVisual();
 	}
 
-	SetWorldItemPhysicsEnabled(bSimulatePhysicsOnSpawn);
+	const bool bHasVisibleMesh =
+		MeshComponent &&
+		MeshComponent->GetStaticMesh() &&
+		!bConsumed;
+
+	SetWorldItemPhysicsEnabled(bSimulatePhysicsOnSpawn && bHasVisibleMesh);
 }
 
 void APNWorldItemActor::InitializeFromData(UPNItemDataAsset* InItemData, int32 InQuantity)
@@ -191,7 +201,24 @@ void APNWorldItemActor::RefreshVisual()
 	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 
 	UStaticMesh* LoadedStaticMesh = Data->Visual.StaticMesh.LoadSynchronous();
+
+	if (!LoadedStaticMesh)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ProjectNova] WorldItem '%s': DataAsset '%s' has no Visual.StaticMesh"),
+			*GetName(),
+			*Data->GetName()
+		);
+
+		MeshComponent->SetStaticMesh(nullptr);
+		SetActorHiddenInGame(true);
+		SetActorEnableCollision(false);
+		return;
+	}
+
 	MeshComponent->SetStaticMesh(LoadedStaticMesh);
+
+	SetActorHiddenInGame(false);
+	SetActorEnableCollision(true);
 }
 
 void APNWorldItemActor::SetQuantity(int32 NewQuantity)
@@ -234,8 +261,22 @@ void APNWorldItemActor::SetWorldItemPhysicsEnabled(bool bEnabled)
 		return;
 	}
 
-	MeshComponent->SetSimulatePhysics(bEnabled);
-	MeshComponent->SetEnableGravity(bEnabled);
+	const bool bCanEnablePhysics =
+		bEnabled &&
+		MeshComponent->GetStaticMesh() != nullptr &&
+		!bConsumed;
+
+	MeshComponent->SetSimulatePhysics(bCanEnablePhysics);
+	MeshComponent->SetEnableGravity(bCanEnablePhysics);
+
+	if (bCanEnablePhysics)
+	{
+		MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	}
+	else
+	{
+		MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	}
 }
 
 UPNItemInstance* APNWorldItemActor::GetItemInstance() const
