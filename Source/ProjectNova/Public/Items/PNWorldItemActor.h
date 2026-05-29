@@ -24,6 +24,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void OnConstruction(const FTransform& Transform) override;
 
 public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "World Item|Components")
@@ -56,6 +57,9 @@ public:
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "World Item|Runtime")
 	TObjectPtr<UPNItemInstance> ItemInstance = nullptr;
+
+	UPROPERTY(Transient)
+	bool bConsumed = false;
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "World Item")
@@ -100,5 +104,6 @@ public:
 protected:
 	UPNItemInstance* DuplicateInstanceForWorld(UPNItemInstance* SourceInstance);
 	void ApplyInteractionRadius();
+	void DeactivateWorldItem();
 	void BroadcastWorldItemChanged();
 };

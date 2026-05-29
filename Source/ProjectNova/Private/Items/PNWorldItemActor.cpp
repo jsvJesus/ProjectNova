@@ -34,6 +34,18 @@ APNWorldItemActor::APNWorldItemActor()
 	PickupSphere->SetGenerateOverlapEvents(true);
 }
 
+void APNWorldItemActor::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+
+	ApplyInteractionRadius();
+
+	if (!bConsumed)
+	{
+		RefreshVisual();
+	}
+}
+
 void APNWorldItemActor::BeginPlay()
 {
 	Super::BeginPlay();
@@ -54,6 +66,8 @@ void APNWorldItemActor::BeginPlay()
 
 void APNWorldItemActor::InitializeFromData(UPNItemDataAsset* InItemData, int32 InQuantity)
 {
+	bConsumed = false;
+	
 	if (!InItemData)
 	{
 		ItemInstance = nullptr;
@@ -83,6 +97,7 @@ void APNWorldItemActor::InitializeFromData(UPNItemDataAsset* InItemData, int32 I
 
 void APNWorldItemActor::InitializeFromInstance(UPNItemInstance* InItemInstance)
 {
+	bConsumed = false;
 	ItemInstance = DuplicateInstanceForWorld(InItemInstance);
 
 	if (ItemInstance)
@@ -121,28 +136,7 @@ bool APNWorldItemActor::PickupToInventory(UPNInventoryComponent* TargetInventory
 
 	if (AddResult.RemainingQuantity <= 0)
 	{
-		ItemInstance = nullptr;
-		DefaultItemData = nullptr;
-		DefaultQuantity = 1;
-
-		if (MeshComponent)
-		{
-			MeshComponent->SetSimulatePhysics(false);
-			MeshComponent->SetEnableGravity(false);
-			MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			MeshComponent->SetStaticMesh(nullptr);
-		}
-
-		if (PickupSphere)
-		{
-			PickupSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			PickupSphere->SetGenerateOverlapEvents(false);
-		}
-
-		SetActorHiddenInGame(true);
-		SetActorEnableCollision(false);
-
-		BroadcastWorldItemChanged();
+		DeactivateWorldItem();
 
 		if (bDestroyWhenPickedUp)
 		{
@@ -167,7 +161,12 @@ bool APNWorldItemActor::PickupToInventory(UPNInventoryComponent* TargetInventory
 
 void APNWorldItemActor::RefreshVisual()
 {
-	UPNItemDataAsset* Data = ItemInstance ? ItemInstance->GetItemData() : nullptr;
+	UPNItemDataAsset* Data = nullptr;
+
+	if (!bConsumed)
+	{
+		Data = ItemInstance ? ItemInstance->GetItemData() : DefaultItemData.Get();
+	}
 
 	if (!MeshComponent)
 	{
@@ -177,6 +176,10 @@ void APNWorldItemActor::RefreshVisual()
 	if (!Data)
 	{
 		MeshComponent->SetStaticMesh(nullptr);
+		MeshComponent->SetSimulatePhysics(false);
+		MeshComponent->SetEnableGravity(false);
+		MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
 		SetActorHiddenInGame(true);
 		SetActorEnableCollision(false);
 		return;
@@ -184,6 +187,8 @@ void APNWorldItemActor::RefreshVisual()
 
 	SetActorHiddenInGame(false);
 	SetActorEnableCollision(true);
+
+	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 
 	UStaticMesh* LoadedStaticMesh = Data->Visual.StaticMesh.LoadSynchronous();
 	MeshComponent->SetStaticMesh(LoadedStaticMesh);
@@ -206,26 +211,7 @@ void APNWorldItemActor::SetQuantity(int32 NewQuantity)
 
 	if (ItemInstance->IsEmpty())
 	{
-		ItemInstance = nullptr;
-		DefaultItemData = nullptr;
-		DefaultQuantity = 1;
-
-		if (MeshComponent)
-		{
-			MeshComponent->SetSimulatePhysics(false);
-			MeshComponent->SetEnableGravity(false);
-			MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			MeshComponent->SetStaticMesh(nullptr);
-		}
-
-		if (PickupSphere)
-		{
-			PickupSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			PickupSphere->SetGenerateOverlapEvents(false);
-		}
-
-		SetActorHiddenInGame(true);
-		SetActorEnableCollision(false);
+		DeactivateWorldItem();
 
 		if (bDestroyWhenPickedUp)
 		{
@@ -369,4 +355,31 @@ void APNWorldItemActor::ApplyInteractionRadius()
 void APNWorldItemActor::BroadcastWorldItemChanged()
 {
 	OnWorldItemChanged.Broadcast();
+}
+
+void APNWorldItemActor::DeactivateWorldItem()
+{
+	bConsumed = true;
+
+	ItemInstance = nullptr;
+	DefaultQuantity = 1;
+
+	if (MeshComponent)
+	{
+		MeshComponent->SetSimulatePhysics(false);
+		MeshComponent->SetEnableGravity(false);
+		MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		MeshComponent->SetStaticMesh(nullptr);
+	}
+
+	if (PickupSphere)
+	{
+		PickupSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		PickupSphere->SetGenerateOverlapEvents(false);
+	}
+
+	SetActorHiddenInGame(true);
+	SetActorEnableCollision(false);
+
+	BroadcastWorldItemChanged();
 }
