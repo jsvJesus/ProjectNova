@@ -344,6 +344,9 @@ USkeletalMeshComponent* UPNEquipmentVisualComponent::CreateSkeletalVisualCompone
 	NewComponent->SetVisibility(false, true);
 	NewComponent->SetHiddenInGame(true, true);
 
+	NewComponent->SetOwnerNoSee(true);
+	NewComponent->SetOnlyOwnerSee(false);
+
 	OwnerCharacter->AddInstanceComponent(NewComponent);
 	NewComponent->RegisterComponent();
 
@@ -376,6 +379,9 @@ UStaticMeshComponent* UPNEquipmentVisualComponent::CreateStaticVisualComponent(F
 	NewComponent->bCastDynamicShadow = true;
 	NewComponent->SetVisibility(false, true);
 	NewComponent->SetHiddenInGame(true, true);
+
+	NewComponent->SetOwnerNoSee(true);
+	NewComponent->SetOnlyOwnerSee(false);
 
 	OwnerCharacter->AddInstanceComponent(NewComponent);
 	NewComponent->RegisterComponent();

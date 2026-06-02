@@ -27,10 +27,12 @@ APNWorldItemActor::APNWorldItemActor()
 	PickupSphere = CreateDefaultSubobject<USphereComponent>(TEXT("PickupSphere"));
 	PickupSphere->SetupAttachment(RootComponent);
 	PickupSphere->SetSphereRadius(InteractionRadius);
+
 	PickupSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	PickupSphere->SetCollisionObjectType(ECC_WorldDynamic);
 	PickupSphere->SetCollisionResponseToAllChannels(ECR_Ignore);
 	PickupSphere->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	PickupSphere->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 	PickupSphere->SetGenerateOverlapEvents(true);
 }
 
@@ -391,6 +393,13 @@ void APNWorldItemActor::ApplyInteractionRadius()
 	}
 
 	PickupSphere->SetSphereRadius(FMath::Max(10.0f, InteractionRadius));
+
+	PickupSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	PickupSphere->SetCollisionObjectType(ECC_WorldDynamic);
+	PickupSphere->SetCollisionResponseToAllChannels(ECR_Ignore);
+	PickupSphere->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	PickupSphere->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	PickupSphere->SetGenerateOverlapEvents(true);
 }
 
 void APNWorldItemActor::BroadcastWorldItemChanged()
