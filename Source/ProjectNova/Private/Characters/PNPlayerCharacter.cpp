@@ -8,6 +8,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Interaction/PNInteractionComponent.h"
 #include "Items/PNQuickSlotComponent.h"
+#include "Items/PNItemInstance.h"
 #include "Equipment/PNEquipmentComponent.h"
 #include "Items/PNItemDataAsset.h"
 #include "Net/UnrealNetwork.h"
@@ -200,6 +201,63 @@ void APNPlayerCharacter::SetFirstPersonAnimType(EPNAnimType NewAnimType)
 	}
 
 	Server_SetFirstPersonAnimType(NewAnimType);
+}
+
+void APNPlayerCharacter::ApplyFirstPersonAnimTypeFromItemData(UPNItemDataAsset* ItemData)
+{
+	EPNAnimType NewAnimType = EPNAnimType::Unarmed;
+    
+    	if (ItemData)
+    	{
+    		switch (ItemData->ItemType)
+    		{
+    		case EPNItemType::IT_Weapon:
+    			NewAnimType = ItemData->WeaponStats.AnimType;
+    			break;
+    
+    		case EPNItemType::IT_Consumables:
+    			NewAnimType = ItemData->ConsumableStats.UseAnimType;
+    			break;
+    
+    		case EPNItemType::IT_Items:
+    			if (ItemData->ItemCategory == EPNItemCategory::Usable)
+    			{
+    				NewAnimType = ItemData->UsableStats.UseAnimType;
+    			}
+    			break;
+    
+    		case EPNItemType::IT_Builds:
+    			NewAnimType = ItemData->BuildStats.PlaceAnimType;
+    			break;
+    
+    		default:
+    			NewAnimType = EPNAnimType::Unarmed;
+    			break;
+    		}
+    	}
+    
+    	if (NewAnimType == EPNAnimType::None)
+    	{
+    		NewAnimType = EPNAnimType::Unarmed;
+    	}
+    
+    	SetFirstPersonAnimType(NewAnimType);
+}
+
+void APNPlayerCharacter::ApplyFirstPersonAnimTypeFromItemInstance(UPNItemInstance* ItemInstance)
+{
+	if (!ItemInstance || !ItemInstance->GetItemData())
+    	{
+    		ResetFirstPersonAnimType();
+    		return;
+    	}
+    
+    	ApplyFirstPersonAnimTypeFromItemData(ItemInstance->GetItemData());
+}
+
+void APNPlayerCharacter::ResetFirstPersonAnimType()
+{
+	SetFirstPersonAnimType(EPNAnimType::Unarmed);
 }
 
 void APNPlayerCharacter::ApplyFirstPersonArmsMesh()
