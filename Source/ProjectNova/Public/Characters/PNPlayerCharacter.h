@@ -34,6 +34,12 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "First Person")
 	TObjectPtr<UCameraComponent> FirstPersonCameraComponent;
 
+	// FP Mesh0 / Master Mesh.
+	// Скрытый mesh, который держит AnimBP и крутит позу.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "First Person")
+	TObjectPtr<USkeletalMeshComponent> FirstPersonMasterMeshComponent;
+
+	// Видимые руки. Они повторяют позу FirstPersonMasterMeshComponent через Leader Pose.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "First Person")
 	TObjectPtr<USkeletalMeshComponent> FirstPersonArmsMeshComponent;
 
@@ -46,15 +52,22 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
 	TObjectPtr<UPNInteractionComponent> InteractionComponent;
 
+	UPROPERTY(ReplicatedUsing = OnRep_FirstPersonMasterMesh, EditAnywhere, BlueprintReadOnly, Category = "First Person")
+	TObjectPtr<USkeletalMesh> FirstPersonMasterMeshAsset = nullptr;
+
 	UPROPERTY(ReplicatedUsing = OnRep_FirstPersonArmsMesh, EditAnywhere, BlueprintReadOnly, Category = "First Person")
 	TObjectPtr<USkeletalMesh> FirstPersonArmsMeshAsset = nullptr;
 
+	// AnimBP ставится на FirstPersonMasterMeshComponent.
+	// FirstPersonArmsMeshComponent только повторяет позу через Leader Pose.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "First Person")
 	TSubclassOf<UAnimInstance> FirstPersonArmsAnimClass;
 
 	UPROPERTY(ReplicatedUsing = OnRep_FirstPersonAnimType, EditAnywhere, BlueprintReadOnly, Category = "First Person")
 	EPNAnimType FirstPersonAnimType = EPNAnimType::Unarmed;
 
+	// Offset всего First Person viewmodel.
+	// Менять лучше в BP_PNPlayerCharacter.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "First Person")
 	FVector FirstPersonArmsRelativeLocation = FVector(0.0f, 0.0f, -150.0f);
 
@@ -85,6 +98,9 @@ public:
 	UCameraComponent* GetFirstPersonCameraComponent() const;
 
 	UFUNCTION(BlueprintPure, Category = "First Person")
+	USkeletalMeshComponent* GetFirstPersonMasterMeshComponent() const;
+
+	UFUNCTION(BlueprintPure, Category = "First Person")
 	USkeletalMeshComponent* GetFirstPersonArmsMeshComponent() const;
 
 	UFUNCTION(BlueprintPure, Category = "First Person|Weapon")
@@ -100,25 +116,34 @@ public:
 	EPNAnimType GetFirstPersonAnimType() const;
 
 	UFUNCTION(BlueprintCallable, Category = "First Person")
+	void SetFirstPersonMasterMesh(USkeletalMesh* NewMasterMesh);
+
+	UFUNCTION(BlueprintCallable, Category = "First Person")
 	void SetFirstPersonArmsMesh(USkeletalMesh* NewArmsMesh);
 
 	UFUNCTION(BlueprintCallable, Category = "First Person")
 	void SetFirstPersonAnimType(EPNAnimType NewAnimType);
-	
+
 	UFUNCTION(BlueprintCallable, Category = "First Person")
-    void ApplyFirstPersonAnimTypeFromItemData(UPNItemDataAsset* ItemData);
-    
-    UFUNCTION(BlueprintCallable, Category = "First Person")
-    void ApplyFirstPersonAnimTypeFromItemInstance(UPNItemInstance* ItemInstance);
-    
-    UFUNCTION(BlueprintCallable, Category = "First Person")
-    void ResetFirstPersonAnimType();
+	void ApplyFirstPersonAnimTypeFromItemData(UPNItemDataAsset* ItemData);
+
+	UFUNCTION(BlueprintCallable, Category = "First Person")
+	void ApplyFirstPersonAnimTypeFromItemInstance(UPNItemInstance* ItemInstance);
+
+	UFUNCTION(BlueprintCallable, Category = "First Person")
+	void ResetFirstPersonAnimType();
+
+	UFUNCTION(BlueprintCallable, Category = "First Person")
+	void ApplyFirstPersonMasterMesh();
 
 	UFUNCTION(BlueprintCallable, Category = "First Person")
 	void ApplyFirstPersonArmsMesh();
 
 	UFUNCTION(BlueprintCallable, Category = "First Person")
 	void ApplyFirstPersonArmsAnimClass();
+
+	UFUNCTION(BlueprintCallable, Category = "First Person")
+	void RefreshFirstPersonPoseLinks();
 
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
 	void StartInteractInput();
@@ -145,6 +170,9 @@ protected:
 
 	UPNItemDataAsset* GetFirstPersonEquippedWeaponData() const;
 	FName ResolveFirstPersonWeaponAttachSocketName(UPNItemDataAsset* WeaponData) const;
+
+	UFUNCTION()
+	void OnRep_FirstPersonMasterMesh();
 
 	UFUNCTION()
 	void OnRep_FirstPersonArmsMesh();

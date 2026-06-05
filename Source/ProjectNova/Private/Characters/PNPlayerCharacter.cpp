@@ -26,10 +26,24 @@ APNPlayerCharacter::APNPlayerCharacter()
 	FirstPersonCameraComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 64.0f));
 	FirstPersonCameraComponent->bUsePawnControlRotation = true;
 
+	FirstPersonMasterMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FirstPersonMasterMeshComponent"));
+	FirstPersonMasterMeshComponent->SetupAttachment(FirstPersonCameraComponent);
+	FirstPersonMasterMeshComponent->SetRelativeLocation(FirstPersonArmsRelativeLocation);
+	FirstPersonMasterMeshComponent->SetRelativeRotation(FirstPersonArmsRelativeRotation);
+	FirstPersonMasterMeshComponent->SetOnlyOwnerSee(true);
+	FirstPersonMasterMeshComponent->SetOwnerNoSee(false);
+	FirstPersonMasterMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	FirstPersonMasterMeshComponent->SetVisibility(false, false);
+	FirstPersonMasterMeshComponent->SetHiddenInGame(true, false);
+	FirstPersonMasterMeshComponent->CastShadow = false;
+	FirstPersonMasterMeshComponent->bCastDynamicShadow = false;
+	FirstPersonMasterMeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+
 	FirstPersonArmsMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FirstPersonArmsMeshComponent"));
-	FirstPersonArmsMeshComponent->SetupAttachment(FirstPersonCameraComponent);
-	FirstPersonArmsMeshComponent->SetRelativeLocation(FirstPersonArmsRelativeLocation);
-	FirstPersonArmsMeshComponent->SetRelativeRotation(FirstPersonArmsRelativeRotation);
+	FirstPersonArmsMeshComponent->SetupAttachment(FirstPersonMasterMeshComponent);
+	FirstPersonArmsMeshComponent->SetRelativeLocation(FVector::ZeroVector);
+	FirstPersonArmsMeshComponent->SetRelativeRotation(FRotator::ZeroRotator);
+	FirstPersonArmsMeshComponent->SetRelativeScale3D(FVector::OneVector);
 	FirstPersonArmsMeshComponent->SetOnlyOwnerSee(true);
 	FirstPersonArmsMeshComponent->SetOwnerNoSee(false);
 	FirstPersonArmsMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -37,6 +51,7 @@ APNPlayerCharacter::APNPlayerCharacter()
 	FirstPersonArmsMeshComponent->SetHiddenInGame(false, true);
 	FirstPersonArmsMeshComponent->CastShadow = false;
 	FirstPersonArmsMeshComponent->bCastDynamicShadow = false;
+	FirstPersonArmsMeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 
 	FirstPersonEquippedStaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("FirstPersonEquippedStaticMeshComponent"));
 	FirstPersonEquippedStaticMeshComponent->SetupAttachment(FirstPersonArmsMeshComponent);
@@ -57,6 +72,7 @@ APNPlayerCharacter::APNPlayerCharacter()
 	FirstPersonEquippedSkeletalMeshComponent->SetHiddenInGame(true, true);
 	FirstPersonEquippedSkeletalMeshComponent->CastShadow = false;
 	FirstPersonEquippedSkeletalMeshComponent->bCastDynamicShadow = false;
+	FirstPersonEquippedSkeletalMeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 
 	InteractionComponent = CreateDefaultSubobject<UPNInteractionComponent>(TEXT("InteractionComponent"));
 }
@@ -67,19 +83,10 @@ void APNPlayerCharacter::BeginPlay()
 
 	RefreshFirstPersonVisibility();
 
-	if (FirstPersonArmsMeshComponent)
-	{
-		FirstPersonArmsMeshComponent->SetVisibility(true, true);
-		FirstPersonArmsMeshComponent->SetHiddenInGame(false, true);
-		FirstPersonArmsMeshComponent->SetOnlyOwnerSee(true);
-		FirstPersonArmsMeshComponent->SetOwnerNoSee(false);
-		FirstPersonArmsMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		FirstPersonArmsMeshComponent->CastShadow = false;
-		FirstPersonArmsMeshComponent->bCastDynamicShadow = false;
-	}
-
+	ApplyFirstPersonMasterMesh();
 	ApplyFirstPersonArmsMesh();
 	ApplyFirstPersonArmsAnimClass();
+	RefreshFirstPersonPoseLinks();
 	RefreshFirstPersonEquippedItemVisual();
 
 	if (UPNEquipmentComponent* PNEquipmentComponent = GetEquipmentComponent())
@@ -146,6 +153,7 @@ void APNPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
+	DOREPLIFETIME(APNPlayerCharacter, FirstPersonMasterMeshAsset);
 	DOREPLIFETIME(APNPlayerCharacter, FirstPersonArmsMeshAsset);
 	DOREPLIFETIME(APNPlayerCharacter, FirstPersonAnimType);
 }
@@ -153,6 +161,11 @@ void APNPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 UCameraComponent* APNPlayerCharacter::GetFirstPersonCameraComponent() const
 {
 	return FirstPersonCameraComponent;
+}
+
+USkeletalMeshComponent* APNPlayerCharacter::GetFirstPersonMasterMeshComponent() const
+{
+	return FirstPersonMasterMeshComponent;
 }
 
 USkeletalMeshComponent* APNPlayerCharacter::GetFirstPersonArmsMeshComponent() const
@@ -180,6 +193,20 @@ EPNAnimType APNPlayerCharacter::GetFirstPersonAnimType() const
 	return FirstPersonAnimType;
 }
 
+void APNPlayerCharacter::SetFirstPersonMasterMesh(USkeletalMesh* NewMasterMesh)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	FirstPersonMasterMeshAsset = NewMasterMesh;
+	ApplyFirstPersonMasterMesh();
+	ApplyFirstPersonArmsAnimClass();
+	RefreshFirstPersonPoseLinks();
+	RefreshFirstPersonEquippedItemVisual();
+}
+
 void APNPlayerCharacter::SetFirstPersonArmsMesh(USkeletalMesh* NewArmsMesh)
 {
 	if (!HasAuthority())
@@ -189,6 +216,8 @@ void APNPlayerCharacter::SetFirstPersonArmsMesh(USkeletalMesh* NewArmsMesh)
 
 	FirstPersonArmsMeshAsset = NewArmsMesh;
 	ApplyFirstPersonArmsMesh();
+	RefreshFirstPersonPoseLinks();
+	RefreshFirstPersonEquippedItemVisual();
 }
 
 void APNPlayerCharacter::SetFirstPersonAnimType(EPNAnimType NewAnimType)
@@ -206,58 +235,88 @@ void APNPlayerCharacter::SetFirstPersonAnimType(EPNAnimType NewAnimType)
 void APNPlayerCharacter::ApplyFirstPersonAnimTypeFromItemData(UPNItemDataAsset* ItemData)
 {
 	EPNAnimType NewAnimType = EPNAnimType::Unarmed;
-    
-    	if (ItemData)
-    	{
-    		switch (ItemData->ItemType)
-    		{
-    		case EPNItemType::IT_Weapon:
-    			NewAnimType = ItemData->WeaponStats.AnimType;
-    			break;
-    
-    		case EPNItemType::IT_Consumables:
-    			NewAnimType = ItemData->ConsumableStats.UseAnimType;
-    			break;
-    
-    		case EPNItemType::IT_Items:
-    			if (ItemData->ItemCategory == EPNItemCategory::Usable)
-    			{
-    				NewAnimType = ItemData->UsableStats.UseAnimType;
-    			}
-    			break;
-    
-    		case EPNItemType::IT_Builds:
-    			NewAnimType = ItemData->BuildStats.PlaceAnimType;
-    			break;
-    
-    		default:
-    			NewAnimType = EPNAnimType::Unarmed;
-    			break;
-    		}
-    	}
-    
-    	if (NewAnimType == EPNAnimType::None)
-    	{
-    		NewAnimType = EPNAnimType::Unarmed;
-    	}
-    
-    	SetFirstPersonAnimType(NewAnimType);
+
+	if (ItemData)
+	{
+		switch (ItemData->ItemType)
+		{
+		case EPNItemType::IT_Weapon:
+			NewAnimType = ItemData->WeaponStats.AnimType;
+			break;
+
+		case EPNItemType::IT_Consumables:
+			NewAnimType = ItemData->ConsumableStats.UseAnimType;
+			break;
+
+		case EPNItemType::IT_Items:
+			if (ItemData->ItemCategory == EPNItemCategory::Usable)
+			{
+				NewAnimType = ItemData->UsableStats.UseAnimType;
+			}
+			break;
+
+		case EPNItemType::IT_Builds:
+			NewAnimType = ItemData->BuildStats.PlaceAnimType;
+			break;
+
+		default:
+			NewAnimType = EPNAnimType::Unarmed;
+			break;
+		}
+	}
+
+	if (NewAnimType == EPNAnimType::None)
+	{
+		NewAnimType = EPNAnimType::Unarmed;
+	}
+
+	SetFirstPersonAnimType(NewAnimType);
 }
 
 void APNPlayerCharacter::ApplyFirstPersonAnimTypeFromItemInstance(UPNItemInstance* ItemInstance)
 {
 	if (!ItemInstance || !ItemInstance->GetItemData())
-    	{
-    		ResetFirstPersonAnimType();
-    		return;
-    	}
-    
-    	ApplyFirstPersonAnimTypeFromItemData(ItemInstance->GetItemData());
+	{
+		ResetFirstPersonAnimType();
+		return;
+	}
+
+	ApplyFirstPersonAnimTypeFromItemData(ItemInstance->GetItemData());
 }
 
 void APNPlayerCharacter::ResetFirstPersonAnimType()
 {
 	SetFirstPersonAnimType(EPNAnimType::Unarmed);
+}
+
+void APNPlayerCharacter::ApplyFirstPersonMasterMesh()
+{
+	if (!FirstPersonMasterMeshComponent)
+	{
+		return;
+	}
+
+	if (FirstPersonMasterMeshAsset)
+	{
+		FirstPersonMasterMeshComponent->SetSkeletalMesh(FirstPersonMasterMeshAsset);
+	}
+
+	FirstPersonMasterMeshComponent->SetOnlyOwnerSee(true);
+	FirstPersonMasterMeshComponent->SetOwnerNoSee(false);
+	FirstPersonMasterMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	FirstPersonMasterMeshComponent->CastShadow = false;
+	FirstPersonMasterMeshComponent->bCastDynamicShadow = false;
+	FirstPersonMasterMeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+
+	// Master скрываем только сам компонент.
+	// НЕ передавать true во второй параметр, иначе спрячутся руки и оружие.
+	FirstPersonMasterMeshComponent->SetVisibility(false, false);
+	FirstPersonMasterMeshComponent->SetHiddenInGame(true, false);
+
+	FirstPersonMasterMeshComponent->SetRelativeLocation(FirstPersonArmsRelativeLocation);
+	FirstPersonMasterMeshComponent->SetRelativeRotation(FirstPersonArmsRelativeRotation);
+	FirstPersonMasterMeshComponent->SetRelativeScale3D(FVector::OneVector);
+	FirstPersonMasterMeshComponent->SetComponentTickEnabled(true);
 }
 
 void APNPlayerCharacter::ApplyFirstPersonArmsMesh()
@@ -279,31 +338,56 @@ void APNPlayerCharacter::ApplyFirstPersonArmsMesh()
 	FirstPersonArmsMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	FirstPersonArmsMeshComponent->CastShadow = false;
 	FirstPersonArmsMeshComponent->bCastDynamicShadow = false;
+	FirstPersonArmsMeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 
-	FirstPersonArmsMeshComponent->SetRelativeLocation(FirstPersonArmsRelativeLocation);
-	FirstPersonArmsMeshComponent->SetRelativeRotation(FirstPersonArmsRelativeRotation);
+	// Offset теперь живёт на Master Mesh.
+	// Руки должны быть в нуле относительно Master.
+	FirstPersonArmsMeshComponent->SetRelativeLocation(FVector::ZeroVector);
+	FirstPersonArmsMeshComponent->SetRelativeRotation(FRotator::ZeroRotator);
+	FirstPersonArmsMeshComponent->SetRelativeScale3D(FVector::OneVector);
+	FirstPersonArmsMeshComponent->SetComponentTickEnabled(true);
 
-	ApplyFirstPersonArmsAnimClass();
+	RefreshFirstPersonPoseLinks();
 }
 
 void APNPlayerCharacter::ApplyFirstPersonArmsAnimClass()
 {
-	if (!FirstPersonArmsMeshComponent)
+	USkeletalMeshComponent* AnimMeshComponent = FirstPersonMasterMeshComponent
+		? FirstPersonMasterMeshComponent.Get()
+		: FirstPersonArmsMeshComponent.Get();
+
+	if (!AnimMeshComponent)
 	{
 		return;
 	}
 
 	if (FirstPersonArmsAnimClass)
 	{
-		FirstPersonArmsMeshComponent->SetAnimationMode(EAnimationMode::AnimationBlueprint);
-		FirstPersonArmsMeshComponent->SetAnimInstanceClass(FirstPersonArmsAnimClass);
+		AnimMeshComponent->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+		AnimMeshComponent->SetAnimInstanceClass(FirstPersonArmsAnimClass);
 		return;
 	}
 
-	if (FirstPersonArmsMeshComponent->GetAnimClass())
+	if (AnimMeshComponent->GetAnimClass())
 	{
-		FirstPersonArmsMeshComponent->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+		AnimMeshComponent->SetAnimationMode(EAnimationMode::AnimationBlueprint);
 	}
+}
+
+void APNPlayerCharacter::RefreshFirstPersonPoseLinks()
+{
+	if (!FirstPersonMasterMeshComponent || !FirstPersonArmsMeshComponent)
+	{
+		return;
+	}
+
+	// Руки повторяют позу FirstPersonMasterMeshComponent.
+	// AnimBP работает на Master Mesh.
+	FirstPersonArmsMeshComponent->SetLeaderPoseComponent(FirstPersonMasterMeshComponent);
+
+	FirstPersonArmsMeshComponent->SetRelativeLocation(FVector::ZeroVector);
+	FirstPersonArmsMeshComponent->SetRelativeRotation(FRotator::ZeroRotator);
+	FirstPersonArmsMeshComponent->SetRelativeScale3D(FVector::OneVector);
 }
 
 void APNPlayerCharacter::StartInteractInput()
@@ -497,18 +581,46 @@ void APNPlayerCharacter::RefreshFirstPersonVisibility()
 		GetThirdPersonHandsMeshComponent()->SetOnlyOwnerSee(false);
 	}
 
+	if (FirstPersonMasterMeshComponent)
+	{
+		FirstPersonMasterMeshComponent->SetOnlyOwnerSee(true);
+		FirstPersonMasterMeshComponent->SetOwnerNoSee(false);
+		FirstPersonMasterMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		FirstPersonMasterMeshComponent->CastShadow = false;
+		FirstPersonMasterMeshComponent->bCastDynamicShadow = false;
+		FirstPersonMasterMeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+		FirstPersonMasterMeshComponent->SetVisibility(false, false);
+		FirstPersonMasterMeshComponent->SetHiddenInGame(true, false);
+		FirstPersonMasterMeshComponent->SetComponentTickEnabled(true);
+	}
+
 	if (FirstPersonArmsMeshComponent)
 	{
 		FirstPersonArmsMeshComponent->SetOnlyOwnerSee(true);
 		FirstPersonArmsMeshComponent->SetOwnerNoSee(false);
 		FirstPersonArmsMeshComponent->SetVisibility(true, true);
 		FirstPersonArmsMeshComponent->SetHiddenInGame(false, true);
+		FirstPersonArmsMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		FirstPersonArmsMeshComponent->CastShadow = false;
+		FirstPersonArmsMeshComponent->bCastDynamicShadow = false;
+		FirstPersonArmsMeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+		FirstPersonArmsMeshComponent->SetComponentTickEnabled(true);
 	}
+}
+
+void APNPlayerCharacter::OnRep_FirstPersonMasterMesh()
+{
+	ApplyFirstPersonMasterMesh();
+	ApplyFirstPersonArmsAnimClass();
+	RefreshFirstPersonPoseLinks();
+	RefreshFirstPersonEquippedItemVisual();
 }
 
 void APNPlayerCharacter::OnRep_FirstPersonArmsMesh()
 {
 	ApplyFirstPersonArmsMesh();
+	RefreshFirstPersonPoseLinks();
+	RefreshFirstPersonEquippedItemVisual();
 }
 
 void APNPlayerCharacter::OnRep_FirstPersonAnimType()
@@ -623,8 +735,13 @@ void APNPlayerCharacter::RefreshFirstPersonEquippedItemVisual()
 			FirstPersonEquippedSkeletalMeshComponent->SetRelativeLocation(FirstPersonWeaponRelativeLocation);
 			FirstPersonEquippedSkeletalMeshComponent->SetRelativeRotation(FirstPersonWeaponRelativeRotation);
 			FirstPersonEquippedSkeletalMeshComponent->SetRelativeScale3D(FirstPersonWeaponRelativeScale);
+			FirstPersonEquippedSkeletalMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			FirstPersonEquippedSkeletalMeshComponent->SetOnlyOwnerSee(true);
+			FirstPersonEquippedSkeletalMeshComponent->SetOwnerNoSee(false);
 			FirstPersonEquippedSkeletalMeshComponent->SetVisibility(true, true);
 			FirstPersonEquippedSkeletalMeshComponent->SetHiddenInGame(false, true);
+			FirstPersonEquippedSkeletalMeshComponent->CastShadow = false;
+			FirstPersonEquippedSkeletalMeshComponent->bCastDynamicShadow = false;
 		}
 
 		return;
@@ -645,8 +762,13 @@ void APNPlayerCharacter::RefreshFirstPersonEquippedItemVisual()
 			FirstPersonEquippedStaticMeshComponent->SetRelativeLocation(FirstPersonWeaponRelativeLocation);
 			FirstPersonEquippedStaticMeshComponent->SetRelativeRotation(FirstPersonWeaponRelativeRotation);
 			FirstPersonEquippedStaticMeshComponent->SetRelativeScale3D(FirstPersonWeaponRelativeScale);
+			FirstPersonEquippedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			FirstPersonEquippedStaticMeshComponent->SetOnlyOwnerSee(true);
+			FirstPersonEquippedStaticMeshComponent->SetOwnerNoSee(false);
 			FirstPersonEquippedStaticMeshComponent->SetVisibility(true, true);
 			FirstPersonEquippedStaticMeshComponent->SetHiddenInGame(false, true);
+			FirstPersonEquippedStaticMeshComponent->CastShadow = false;
+			FirstPersonEquippedStaticMeshComponent->bCastDynamicShadow = false;
 		}
 
 		return;
