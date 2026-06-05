@@ -13,8 +13,6 @@ class USkeletalMesh;
 class USkeletalMeshComponent;
 class UStaticMesh;
 class UStaticMeshComponent;
-class UPNItemDataAsset;
-class UPNItemInstance;
 
 UCLASS()
 class PROJECTNOVA_API APNPlayerCharacter : public APNBaseCharacter
@@ -121,17 +119,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "First Person")
 	void SetFirstPersonArmsMesh(USkeletalMesh* NewArmsMesh);
 
+	// Низкоуровневый setter. Не использовать из UI/Slot BP для экипировки.
+	// Для оружия главный путь: Equipment -> RefreshFirstPersonAnimTypeFromEquipment().
 	UFUNCTION(BlueprintCallable, Category = "First Person")
 	void SetFirstPersonAnimType(EPNAnimType NewAnimType);
-
-	UFUNCTION(BlueprintCallable, Category = "First Person")
-	void ApplyFirstPersonAnimTypeFromItemData(UPNItemDataAsset* ItemData);
-
-	UFUNCTION(BlueprintCallable, Category = "First Person")
-	void ApplyFirstPersonAnimTypeFromItemInstance(UPNItemInstance* ItemInstance);
-
-	UFUNCTION(BlueprintCallable, Category = "First Person")
-	void ResetFirstPersonAnimType();
 
 	UFUNCTION(BlueprintCallable, Category = "First Person")
 	void ApplyFirstPersonMasterMesh();
